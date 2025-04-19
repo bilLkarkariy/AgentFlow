@@ -9,8 +9,9 @@ describe('QuotaReporterService', () => {
   let stripe: jest.Mocked<StripeService>;
 
   beforeEach(() => {
-    repo = { find: jest.fn() } as any;
-    stripe = { createUsageRecord: jest.fn() } as any;
+    // Use unknown to force-cast partial mocks
+    repo = ({ find: jest.fn() } as unknown) as jest.Mocked<Repository<TaskRun>>;
+    stripe = ({ createUsageRecord: jest.fn() } as unknown) as jest.Mocked<StripeService>;
     service = new QuotaReporterService(repo, stripe);
   });
 
@@ -20,7 +21,7 @@ describe('QuotaReporterService', () => {
       Object.assign(new TaskRun(), { subscriptionItemId: 'sub1', executedAt: new Date() }),
       Object.assign(new TaskRun(), { subscriptionItemId: 'sub2', executedAt: new Date() }),
     ];
-    repo.find.mockResolvedValue(runs as any);
+    repo.find.mockResolvedValue(runs);
     await service.reportDailyUsage();
     expect(stripe.createUsageRecord).toHaveBeenCalledTimes(2);
     expect(stripe.createUsageRecord).toHaveBeenCalledWith('sub1', 2);
@@ -41,7 +42,7 @@ describe('QuotaReporterService', () => {
     for (let i = 0; i < 3; i++) {
       runs.push(Object.assign(new TaskRun(), { subscriptionItemId: 'big2', executedAt: new Date() }));
     }
-    repo.find.mockResolvedValue(runs as any);
+    repo.find.mockResolvedValue(runs);
     await service.reportDailyUsage();
     expect(stripe.createUsageRecord).toHaveBeenCalledTimes(2);
     expect(stripe.createUsageRecord).toHaveBeenCalledWith('big1', 5);
