@@ -1,0 +1,13 @@
+# Node
+node_modules
+pnpm-lock.yaml
+
+# Build
+/dist
+*.log
+.env
+.terraform/
+
+# IDE
+.idea
+.vscode
