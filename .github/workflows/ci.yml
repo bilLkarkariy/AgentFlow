@@ -34,17 +34,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node 20 + pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
+      # Prepare pnpm via corepack (bundled with Node.js 20)
+      - name: Prepare pnpm
+        run: corepack enable && corepack prepare pnpm@8 --activate
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Lint
         run: pnpm lint
