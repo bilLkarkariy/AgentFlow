@@ -1,12 +1,15 @@
 # Node
+node_modules/
 node_modules
 pnpm-lock.yaml
 
 # Build
 /dist
+dist/
 *.log
 .env
 .terraform/
+.env
 
 # IDE
 .idea
