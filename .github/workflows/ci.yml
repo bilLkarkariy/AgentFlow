@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Debug POSTGRES_URL
+        run: echo "POSTGRES_URL=$POSTGRES_URL"
 
       # Prepare pnpm via corepack (bundled with Node.js 20)
       - name: Prepare pnpm

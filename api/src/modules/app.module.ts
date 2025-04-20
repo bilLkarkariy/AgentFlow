@@ -17,8 +17,18 @@ dotenv.config();
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: () => {
-        const isJest = process.env.JEST_WORKER_ID !== undefined;
-        if (isJest) {
+        // Use hosted Postgres if configured
+        if (process.env.POSTGRES_URL) {
+          return {
+            type: 'postgres',
+            url: process.env.POSTGRES_URL,
+            autoLoadEntities: true,
+            synchronize: true,
+          };
+        }
+        // Else run tests in-memory (SQLite)
+        const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+        if (isTest) {
           return {
             type: 'sqlite',
             database: ':memory:',
@@ -27,12 +37,7 @@ dotenv.config();
             dropSchema: true,
           };
         }
-        return {
-          type: 'postgres',
-          url: process.env.POSTGRES_URL,
-          autoLoadEntities: true,
-          synchronize: true,
-        };
+        throw new Error('DATABASE URL not configured');
       },
     }),
     ScheduleModule.forRoot(),
