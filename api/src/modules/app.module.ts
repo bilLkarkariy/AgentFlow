@@ -13,6 +13,13 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+// Fix PG ESM import for TypeORM
+import * as pgPkg from 'pg';
+import { PlatformTools } from 'typeorm/platform/PlatformTools';
+const pg = pgPkg.default || pgPkg;
+const originalLoad = PlatformTools.load;
+PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : originalLoad(moduleName);
+
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -22,6 +29,7 @@ dotenv.config();
           return {
             type: 'postgres',
             url: process.env.POSTGRES_URL,
+            ssl: { rejectUnauthorized: false },
             autoLoadEntities: true,
             synchronize: true,
           };
