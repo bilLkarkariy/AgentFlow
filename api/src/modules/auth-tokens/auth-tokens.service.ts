@@ -26,7 +26,21 @@ export class AuthTokensService {
   }
 
   async save(token: Partial<AuthToken>) {
-    await this.repo.save(token);
+    // Update existing record if id provided
+    if ('id' in token && token.id) {
+      await this.repo.update(token.id, token);
+      return;
+    }
+    // Upsert by provider and userId to avoid duplicates
+    if (token.provider && token.userId) {
+      const existing = await this.repo.findOne({ where: { provider: token.provider, userId: token.userId } });
+      if (existing) {
+        await this.repo.update(existing.id, token);
+        return;
+      }
+    }
+    // Create new token
+    await this.repo.save(token as AuthToken);
   }
 
   private async refresh(token: AuthToken): Promise<AuthToken> {

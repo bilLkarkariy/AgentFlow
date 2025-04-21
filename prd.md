@@ -74,16 +74,28 @@ Commissions : 30 % AgentFlow / 70 % créateur. Validation qualité & sécu
 
 ## 4. Audience Cible & Personas  
 ### 4.1 Audience principale  
-* TPE (1‑9 salariés) & PME (10‑249) en France, secteurs : services, commerce, BTP, artisanat, conseil.  
+* TPE (1‑9 salariés) & PME (10‑249) en France, secteurs : services, commerce, BTP, artisanat, conseil.
 
-### 4.2 Persona clé — **Sophie Dubois**  
-* Gérante d’une agence de communication (20 employés)  
-* Compétences numériques de base, pas technique  
-* Besoin : gagner du temps sur factures, relances, support simple  
-* Pain points : tâches manuelles répétitives, risque erreur, coût RPA  
+### 4.2 Personas clés
+- **Sophie Dubois** — Gérante d’une agence de communication (20 employés)
+  * Compétences numériques de base, pas technique
+  * Objectifs : gagner du temps sur factures, relances, support simple
+  * Pain points : tâches manuelles répétitives, risque erreur, coût RPA
 
-### 4.3 Utilisateurs secondaires  
-Assistants admin, office managers, responsables de service.  
+- **Anne Dupont** — Assistante administrative
+  * Objectifs : rationaliser la saisie des factures, automatiser les relances clients et le reporting mensuel
+  * Pain points : saisie manuelle chronophage, suivi des échéances dispersé
+
+- **Jean Martin** — Directeur des systèmes d'information
+  * Objectifs : sécuriser les flux, garantir RGPD et SLA, centraliser les connecteurs
+  * Pain points : complexité technique, manque de ressources pour maintenir plusieurs intégrations
+
+- **Claire Leroy** — Directrice financière d’un groupe multi‑entités
+  * Objectifs : consolidation des données comptables, visibilité temps réel sur la trésorerie
+  * Pain points : données éparpillées entre services, délais de reporting long
+
+### 4.3 Utilisateurs secondaires
+Assistants admin, office managers, responsables de service.
 
 ---
 

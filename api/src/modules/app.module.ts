@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { HealthController } from '../controllers/health.controller';
+import { HealthController } from './health/health.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsModule } from './agents/agents.module';
 import { GmailModule } from './gmail/gmail.module';
@@ -10,6 +10,10 @@ import { QueuesModule } from './queues/queues.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import * as dotenv from 'dotenv';
+import { PennylaneModule } from './pennylane/pennylane.module';
+import { SlackModule } from './slack/slack.module';
+import { XeroModule } from './xero/xero.module';
+import { QuontoModule } from './quonto/quonto.module';
 
 dotenv.config();
 
@@ -24,17 +28,7 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: () => {
-        // Use hosted Postgres if configured
-        if (process.env.POSTGRES_URL) {
-          return {
-            type: 'postgres',
-            url: process.env.POSTGRES_URL,
-            ssl: { rejectUnauthorized: false },
-            autoLoadEntities: true,
-            synchronize: true,
-          };
-        }
-        // Else run tests in-memory (SQLite)
+        // First, if running tests, use in-memory SQLite
         const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
         if (isTest) {
           return {
@@ -43,6 +37,17 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
             autoLoadEntities: true,
             synchronize: true,
             dropSchema: true,
+          };
+        }
+        // Use hosted Postgres if configured
+        if (process.env.POSTGRES_URL) {
+          return {
+            type: 'postgres',
+            url: process.env.POSTGRES_URL,
+            // disable SSL for local Postgres
+            ssl: false,
+            autoLoadEntities: true,
+            synchronize: true,
           };
         }
         throw new Error('DATABASE URL not configured');
@@ -60,7 +65,11 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     AuthTokensModule,
     RabbitMQModule,
     StripeModule,
+    SlackModule,
+    XeroModule,
+    PennylaneModule,
     QueuesModule,
+    QuontoModule,
   ],
   controllers: [HealthController],
 })

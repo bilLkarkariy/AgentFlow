@@ -12,7 +12,6 @@ export class TaskRun {
 
   // When the task was executed (auto timestamp)
   @CreateDateColumn({
-    type: 'datetime',
     default: () => 'CURRENT_TIMESTAMP',
   })
   executedAt: Date;

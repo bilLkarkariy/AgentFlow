@@ -9,7 +9,7 @@ export class Agent {
   @Column()
   name: string;
 
-  @Column({ type: 'simple-json' })
+  @Column({ type: 'simple-json', nullable: true })
   dsl: AgentDsl;
 
   @Column({ default: true })

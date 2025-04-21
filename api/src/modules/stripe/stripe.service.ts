@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import Stripe from 'stripe';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -18,7 +18,7 @@ export class StripeService {
 
   async verifyWebhookSignature(rawBody: Buffer, sig: string | undefined) {
     const secret = process.env.STRIPE_WEBHOOK_SECRET as string;
-    if (!secret) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
+    if (!secret) throw new InternalServerErrorException('Missing STRIPE_WEBHOOK_SECRET');
 
     return this.stripe.webhooks.constructEvent(rawBody, sig ?? '', secret);
   }

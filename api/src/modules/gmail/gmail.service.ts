@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { google } from 'googleapis';
 import * as dotenv from 'dotenv';
 import { AuthTokensService } from '../auth-tokens/auth-tokens.service';
@@ -31,7 +31,7 @@ export class GmailService {
   async handleCallback(code: string) {
     try {
       const { tokens } = await this.oauth2.getToken(code);
-      if (!tokens.access_token) throw new Error('No token');
+      if (!tokens.access_token) throw new BadRequestException('No token');
       await this.tokens.save({
         provider: 'gmail',
         userId: tokens.id_token ?? 'unknown',

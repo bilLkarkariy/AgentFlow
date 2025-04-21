@@ -1,6 +1,9 @@
 {
   "root": true,
   "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./api/tsconfig.json"
+  },
   "plugins": ["@typescript-eslint"],
   "extends": [
     "eslint:recommended",
@@ -11,5 +14,8 @@
     "es2022": true,
     "node": true
   },
-  "ignorePatterns": ["dist", "node_modules"]
+  "ignorePatterns": ["dist", "node_modules", "web/tailwind.config.ts", "web/vite.config.ts"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off"
+  }
 }
