@@ -23,6 +23,7 @@ async function bootstrap() {
   console.log('POSTGRES_URL', process.env.POSTGRES_URL);
 
   const app = await NestFactory.create(AppModule);
+  app.enableCors();
   app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),

@@ -1,0 +1,52 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        working-directory: ./api
+        run: pnpm run build
+
+      - name: Run API tests
+        working-directory: ./api
+        run: pnpm run test:e2e
+
+      - name: Build Frontend
+        working-directory: ./web/dashboard
+        run: pnpm run build
+
+      - name: Run Frontend Tests
+        working-directory: ./web/dashboard
+        run: pnpm run test
+
+      - name: Build Docker images
+        run: |
+          docker build -t agentflow-api ./api
+          docker build -t agentflow-dashboard ./web/dashboard
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy stack
+        run: |
+          docker stack deploy -c docker-compose.yml agentflow

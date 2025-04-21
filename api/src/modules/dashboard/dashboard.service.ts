@@ -21,7 +21,7 @@ export class DashboardService {
       .createQueryBuilder('t')
       .select("DATE(t.executedAt)", 'date')
       .addSelect('COUNT(*)', 'executionsCount')
-      .where('t.executedAt BETWEEN :from AND :to', { from, to })
+      .where("DATE(t.executedAt) BETWEEN :from AND :to", { from, to })
       .groupBy('date')
       .orderBy('date')
       .getRawMany<{ date: string; executionsCount: string }>();

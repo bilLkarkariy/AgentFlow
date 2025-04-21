@@ -14,6 +14,7 @@ import { PennylaneModule } from './pennylane/pennylane.module';
 import { SlackModule } from './slack/slack.module';
 import { XeroModule } from './xero/xero.module';
 import { QuontoModule } from './quonto/quonto.module';
+import { SeedModule } from './seed/seed.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
@@ -74,6 +75,7 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     PennylaneModule,
     QueuesModule,
     QuontoModule,
+    SeedModule,
     DashboardModule,
   ],
   controllers: [HealthController, TestErrorController],

@@ -2,7 +2,9 @@
   "root": true,
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": "./api/tsconfig.json"
+    "project": ["./api/tsconfig.json","./web/dashboard/tsconfig.json"],
+    "tsconfigRootDir": ".",
+    "createDefaultProgram": true
   },
   "plugins": ["@typescript-eslint"],
   "extends": [
@@ -14,7 +16,7 @@
     "es2022": true,
     "node": true
   },
-  "ignorePatterns": ["dist", "node_modules", "web/tailwind.config.ts", "web/vite.config.ts"],
+  "ignorePatterns": ["dist", "node_modules", "web/tailwind.config.ts", "web/vite.config.ts","web/dashboard/**/*.config.ts","web/dashboard/**/*.config.js"],
   "rules": {
     "@typescript-eslint/no-explicit-any": "off"
   }
