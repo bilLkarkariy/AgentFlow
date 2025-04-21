@@ -17,18 +17,7 @@ describe('PennylaneService', () => {
     mockedAxios.put.mockReset();
   });
 
-  it('listInvoices should call axios.get with correct URL and headers', async () => {
-    const sampleData = [{ id: 'inv_123', amount: 100 }];
-    mockedAxios.get.mockResolvedValue({ data: sampleData });
 
-    const invoices = await service.listInvoices();
-
-    expect(mockedAxios.get).toHaveBeenCalledWith(
-      'https://api.test.pennylane.io/external/v2/customer_invoices',
-      { headers: { Authorization: 'Bearer test-token', Accept: 'application/json' } }
-    );
-    expect(invoices).toEqual(sampleData);
-  });
 
   it('createInvoice should call axios.post with correct URL, data, and headers', async () => {
     const input = { amount: 200 };

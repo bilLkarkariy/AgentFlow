@@ -14,6 +14,10 @@ import { PennylaneModule } from './pennylane/pennylane.module';
 import { SlackModule } from './slack/slack.module';
 import { XeroModule } from './xero/xero.module';
 import { QuontoModule } from './quonto/quonto.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
+import { TestErrorController } from '../common/controllers/test-error.controller';
 
 dotenv.config();
 
@@ -70,7 +74,14 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     PennylaneModule,
     QueuesModule,
     QuontoModule,
+    DashboardModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, TestErrorController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: SlackAlertInterceptor,
+    },
+  ],
 })
 export class AppModule {}

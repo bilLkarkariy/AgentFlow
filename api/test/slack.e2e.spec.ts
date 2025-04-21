@@ -48,3 +48,5 @@ describe('SlackModule (e2e)', () => {
     expect(messages.some((m) => m.text === text)).toBe(true);
   });
 });
+
+
