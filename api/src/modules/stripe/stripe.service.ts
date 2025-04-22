@@ -40,4 +40,16 @@ export class StripeService {
       action: 'increment',
     });
   }
+
+  /**
+   * Create a Customer Portal session for self-service billing
+   * @param customerId Stripe customer ID
+   * @param returnUrl URL to redirect user after portal
+   */
+  async createCustomerPortalSession(customerId: string, returnUrl: string) {
+    return this.stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+  }
 }

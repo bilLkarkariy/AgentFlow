@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { TaskRun } from '../tasks/task-run.entity';
+import { Repository, Between } from 'typeorm';
+import { Metric } from './metric.entity';
 
 export interface RoiStat {
   date: string;
@@ -12,28 +12,19 @@ export interface RoiStat {
 @Injectable()
 export class DashboardService {
   constructor(
-    @InjectRepository(TaskRun)
-    private readonly taskRunRepo: Repository<TaskRun>,
+    @InjectRepository(Metric)
+    private readonly metricRepo: Repository<Metric>,
   ) {}
 
   async getRoiStats(from: string, to: string): Promise<RoiStat[]> {
-    const rows = await this.taskRunRepo
-      .createQueryBuilder('t')
-      .select("DATE(t.executedAt)", 'date')
-      .addSelect('COUNT(*)', 'executionsCount')
-      .where("DATE(t.executedAt) BETWEEN :from AND :to", { from, to })
-      .groupBy('date')
-      .orderBy('date')
-      .getRawMany<{ date: string; executionsCount: string }>();
-
-    const timeSavedPerRun = parseFloat(
-      process.env.TIME_SAVED_PER_RUN || '5',
-    );
-
-    return rows.map(r => ({
-      date: r.date,
-      executionsCount: +r.executionsCount,
-      timeSavedMinutes: +r.executionsCount * timeSavedPerRun,
+    const metrics = await this.metricRepo.find({
+      where: { date: Between(from, to) },
+      order: { date: 'ASC' },
+    });
+    return metrics.map(m => ({
+      date: m.date,
+      executionsCount: m.executionsCount,
+      timeSavedMinutes: m.timeSavedMinutes,
     }));
   }
 }

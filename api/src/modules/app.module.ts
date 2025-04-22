@@ -16,6 +16,9 @@ import { XeroModule } from './xero/xero.module';
 import { QuontoModule } from './quonto/quonto.module';
 import { SeedModule } from './seed/seed.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { BullBoardModule } from './bull-board/bull-board.module';
+import { UsersModule } from './users/users.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
 import { TestErrorController } from '../common/controllers/test-error.controller';
@@ -33,17 +36,6 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: () => {
-        // First, if running tests, use in-memory SQLite
-        const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
-        if (isTest) {
-          return {
-            type: 'sqlite',
-            database: ':memory:',
-            autoLoadEntities: true,
-            synchronize: true,
-            dropSchema: true,
-          };
-        }
         // Use hosted Postgres if configured
         if (process.env.POSTGRES_URL) {
           return {
@@ -53,6 +45,17 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
             ssl: false,
             autoLoadEntities: true,
             synchronize: true,
+          };
+        }
+        // Fallback: if running tests, use in-memory SQLite
+        const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+        if (isTest) {
+          return {
+            type: 'sqlite',
+            database: ':memory:',
+            autoLoadEntities: true,
+            synchronize: true,
+            dropSchema: true,
           };
         }
         throw new Error('DATABASE URL not configured');
@@ -74,9 +77,12 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     XeroModule,
     PennylaneModule,
     QueuesModule,
+    BullBoardModule,
     QuontoModule,
     SeedModule,
     DashboardModule,
+    UsersModule,
+    MetricsModule,
   ],
   controllers: [HealthController, TestErrorController],
   providers: [
