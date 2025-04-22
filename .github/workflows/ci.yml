@@ -26,6 +26,14 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Build API
+        working-directory: ./api
+        run: pnpm run build
+
+      - name: Build Frontend
+        working-directory: ./web/dashboard
+        run: pnpm run build
+
       - name: Run unit tests only (skip e2e)
         working-directory: api
         run: pnpm exec jest --config jest-e2e.json --runInBand --testPathIgnorePatterns e2e
