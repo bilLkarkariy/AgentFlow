@@ -43,12 +43,7 @@ export class DashboardAggregatorService implements OnModuleInit {
     });
 
     if (metrics.length) {
-      await this.metricRepo
-        .createQueryBuilder()
-        .insert()
-        .values(metrics)
-        .orUpdate(['executionsCount', 'timeSavedMinutes'], ['date'])
-        .execute();
+      await this.metricRepo.save(metrics);
       this.logger.log(`Aggregated ${metrics.length} new metrics`);
     } else {
       this.logger.log('No new metrics to aggregate');

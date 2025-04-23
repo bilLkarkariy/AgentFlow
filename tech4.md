@@ -158,3 +158,16 @@ Auth : même guard JWT qu’existant `UsersController` + futur RBAC.
 * Versioning des flows + rollback.
 * Variables d’entrée/sortie & mappage données.
 * Marketplace template importer (NEW‑US‑16).
+
+## 11. Architecture Front (mise à jour 22 avr 2025)
+
+Nous séparons désormais les SPA :
+
+| Package | Port | Audience | Domaine |
+|---------|------|----------|---------|
+| `web/dashboard` | 5173 | Finance / Management | KPI & ROI reports |
+| `web/studio` | 5174 | Ops / Citizen‑dev | Flow builder & execution |
+
+Les deux apps partagent un **design‑system** (lib future `web/ui-kit`) via pnpm workspaces, mais ont des bundles et cycles de déploiement indépendants.
+
+---

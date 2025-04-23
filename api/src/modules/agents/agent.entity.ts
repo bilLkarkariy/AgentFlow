@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { AgentDsl } from './dsl-parser.service';
+import { AgentFlow } from './flow/agent-flow.entity';
 
 @Entity({ name: 'agents' })
 export class Agent {
@@ -14,4 +15,7 @@ export class Agent {
 
   @Column({ default: true })
   active: boolean;
+
+  @OneToMany(() => AgentFlow, (f) => f.agent)
+  flows: AgentFlow[];
 }

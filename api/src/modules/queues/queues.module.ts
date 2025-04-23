@@ -7,17 +7,19 @@ import { ExecuteProcessor } from './execute.processor';
 import { TasksModule } from '../tasks/tasks.module';
 import { SlackAlertProcessor } from './slack-alert.processor';
 import { SlackModule } from '../slack/slack.module';
+import { FlowGateway } from '../agents/flow/flow.gateway';
 
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'gmail' }),
+    BullModule.registerQueue({ name: 'execute-agent' }),
     BullModule.registerQueue({ name: 'agents' }),
     BullModule.registerQueue({ name: 'alert-slack' }),
     GmailModule,
     SlackModule,
     TasksModule,
   ],
-  providers: [GmailProcessor, ExecuteProcessor, SlackAlertProcessor],
+  providers: [GmailProcessor, ExecuteProcessor, SlackAlertProcessor, FlowGateway],
   controllers: [GmailQueueController],
   exports: [
     BullModule.registerQueue({ name: 'agents' })

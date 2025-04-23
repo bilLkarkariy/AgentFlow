@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, HttpStatus } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 jest.setTimeout(30000);
 
@@ -18,7 +19,11 @@ describe('Billing (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.enableShutdownHooks();
     await app.init();
+    // stop all cron jobs to allow Jest to exit
+    const scheduler = app.get<SchedulerRegistry>(SchedulerRegistry);
+    scheduler.getCronJobs().forEach(job => job.stop());
   });
 
   afterAll(async () => {

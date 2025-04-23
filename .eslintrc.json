@@ -2,7 +2,7 @@
   "root": true,
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": ["./api/tsconfig.json","./web/dashboard/tsconfig.json"],
+    "project": ["./api/tsconfig.json","./web/dashboard/tsconfig.json","./web/studio/tsconfig.json"],
     "tsconfigRootDir": ".",
     "createDefaultProgram": true
   },
@@ -16,7 +16,20 @@
     "es2022": true,
     "node": true
   },
-  "ignorePatterns": ["dist", "node_modules", "web/tailwind.config.ts", "web/vite.config.ts","web/dashboard/**/*.config.ts","web/dashboard/**/*.config.js"],
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "web/tailwind.config.ts",
+    "web/vite.config.ts",
+    "web/dashboard/**/*.config.ts",
+    "web/dashboard/**/*.config.js",
+    "web/studio/jest.config.js",
+    "web/studio/playwright.config.ts",
+    "web/studio/postcss.config.js",
+    "web/studio/tailwind.config.ts",
+    "web/studio/vite.config.ts",
+    "web/studio/tests/**/*"
+  ],
   "rules": {
     "@typescript-eslint/no-explicit-any": "off"
   }

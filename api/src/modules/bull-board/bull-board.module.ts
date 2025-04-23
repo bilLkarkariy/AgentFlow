@@ -13,19 +13,24 @@ import { SlackModule } from '../slack/slack.module';
 })
 export class BullBoardModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Initialize BullMQ queue for Slack alerts
-    const alertSlackQueue = new Queue('alert-slack', {
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      },
-    });
+    // Initialize BullMQ queues for Slack alerts, flow execution, and agents DLQ
+    const connection = {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    };
+    const alertSlackQueue = new Queue('alert-slack', { connection });
+    const executeQueue = new Queue('execute-agent', { connection });
+    const agentsQueue = new Queue('agents', { connection });
 
     // Set up Bull Board UI under /admin/queues
     const serverAdapter = new ExpressAdapter();
     serverAdapter.setBasePath('/admin/queues');
     createBullBoard({
-      queues: [new BullMQAdapter(alertSlackQueue)],
+      queues: [
+        new BullMQAdapter(alertSlackQueue),
+        new BullMQAdapter(executeQueue),
+        new BullMQAdapter(agentsQueue),
+      ],
       serverAdapter,
     });
 

@@ -4,6 +4,7 @@ import { TaskRun } from '../src/modules/tasks/task-run.entity';
 import { GmailService } from '../src/modules/gmail/gmail.service';
 import { Job } from 'bullmq';
 import { AgentDsl } from '../src/modules/agents/dsl-parser.service';
+import { FlowGateway } from 'src/modules/agents/flow/flow.gateway';
 
 describe('ExecuteProcessor', () => {
   let processor: ExecuteProcessor;
@@ -13,7 +14,7 @@ describe('ExecuteProcessor', () => {
   beforeEach(() => {
     mockRepo = { save: jest.fn() } as unknown as jest.Mocked<Repository<TaskRun>>;
     mockGmail = {} as unknown as jest.Mocked<GmailService>;
-    processor = new ExecuteProcessor(mockGmail, mockRepo);
+    processor = new ExecuteProcessor(mockGmail, mockRepo, {} as unknown as FlowGateway);
   });
 
   it('should save a TaskRun for each job execution', async () => {

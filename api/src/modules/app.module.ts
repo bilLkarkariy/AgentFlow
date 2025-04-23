@@ -19,6 +19,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { BullBoardModule } from './bull-board/bull-board.module';
 import { UsersModule } from './users/users.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { FlowLogsModule } from './flow-logs/flow-logs.module';
+import { DLQModule } from './dlq/dlq.module';
+import { HubspotModule } from './hubspot/hubspot.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
 import { TestErrorController } from '../common/controllers/test-error.controller';
@@ -36,6 +39,17 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: () => {
+        // Use in-memory SQLite for tests
+        const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+        if (isTest) {
+          return {
+            type: 'sqlite',
+            database: ':memory:',
+            autoLoadEntities: true,
+            synchronize: true,
+            dropSchema: true,
+          };
+        }
         // Use hosted Postgres if configured
         if (process.env.POSTGRES_URL) {
           return {
@@ -45,17 +59,6 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
             ssl: false,
             autoLoadEntities: true,
             synchronize: true,
-          };
-        }
-        // Fallback: if running tests, use in-memory SQLite
-        const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
-        if (isTest) {
-          return {
-            type: 'sqlite',
-            database: ':memory:',
-            autoLoadEntities: true,
-            synchronize: true,
-            dropSchema: true,
           };
         }
         throw new Error('DATABASE URL not configured');
@@ -83,6 +86,9 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     DashboardModule,
     UsersModule,
     MetricsModule,
+    FlowLogsModule,
+    DLQModule,
+    HubspotModule,
   ],
   controllers: [HealthController, TestErrorController],
   providers: [

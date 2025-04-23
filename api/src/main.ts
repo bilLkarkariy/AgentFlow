@@ -3,6 +3,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ValidationPipe } from '@nestjs/common';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './modules/app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { raw } from 'body-parser';
@@ -29,6 +30,8 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
+  // Enable WebSocket adapter for Socket.IO gateways
+  app.useWebSocketAdapter(new IoAdapter(app));
   const config = new DocumentBuilder()
     .setTitle('AgentFlow API')
     .setDescription('Skeleton API docs')

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Metric } from './metric.entity';
 
 export interface RoiStat {
@@ -17,14 +17,18 @@ export class DashboardService {
   ) {}
 
   async getRoiStats(from: string, to: string): Promise<RoiStat[]> {
-    const metrics = await this.metricRepo.find({
-      where: { date: Between(from, to) },
-      order: { date: 'ASC' },
-    });
-    return metrics.map(m => ({
-      date: m.date,
-      executionsCount: m.executionsCount,
-      timeSavedMinutes: m.timeSavedMinutes,
+    const perRun = parseInt(process.env.TIME_SAVED_PER_RUN ?? '0', 10);
+    const raw = await this.metricRepo.createQueryBuilder('t')
+      .select('t.date', 'date')
+      .addSelect('SUM(t.executionsCount)', 'executionsCount')
+      .where('t.date BETWEEN :from AND :to', { from, to })
+      .groupBy('t.date')
+      .orderBy('t.date', 'ASC')
+      .getRawMany();
+    return raw.map(r => ({
+      date: r.date,
+      executionsCount: parseInt(r.executionsCount, 10),
+      timeSavedMinutes: parseInt(r.executionsCount, 10) * perRun,
     }));
   }
 }

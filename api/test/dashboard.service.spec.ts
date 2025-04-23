@@ -1,12 +1,12 @@
-import { DashboardService } from '../src/modules/dashboard/dashboard.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { TaskRun } from '../src/modules/tasks/task-run.entity';
 import { Repository } from 'typeorm';
+import { DashboardService } from '../src/modules/dashboard/dashboard.service';
+import { Metric } from '../src/modules/dashboard/metric.entity';
 
 describe('DashboardService', () => {
   let service: DashboardService;
-  let repo: Partial<Repository<TaskRun>>;
+  let repo: Partial<Repository<Metric>>;
 
   beforeEach(async () => {
     const mockQB: any = {
@@ -26,7 +26,7 @@ describe('DashboardService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DashboardService,
-        { provide: getRepositoryToken(TaskRun), useValue: repo },
+        { provide: getRepositoryToken(Metric), useValue: repo },
       ],
     }).compile();
     service = module.get<DashboardService>(DashboardService);

@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
+import { DashboardAggregatorService } from '../src/modules/dashboard/dashboard.aggregator.service';
 
 describe('DashboardModule (e2e)', () => {
   let app: INestApplication;
@@ -18,6 +19,9 @@ describe('DashboardModule (e2e)', () => {
 
     app = module.createNestApplication();
     await app.init();
+    // Run initial ROI aggregation to populate metrics
+    const aggregator = app.get(DashboardAggregatorService);
+    await aggregator.handleCron();
   });
 
   afterAll(async () => {

@@ -6,21 +6,31 @@ import { Queue } from 'bullmq';
 @Injectable()
 export class DlqAlertService {
   private readonly logger = new Logger(DlqAlertService.name);
-  private readonly queue: Queue;
+  private queue?: Queue;
   private alertSent = false;
   private readonly threshold: number;
 
   constructor(private readonly slackService: SlackService) {
-    const connection = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    };
-    this.queue = new Queue('alert-slack', { connection });
+    // Set alert threshold
     this.threshold = parseInt(process.env.DLQ_ALERT_THRESHOLD || '10', 10);
+    // Only instantiate real queue outside of tests
+    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+    if (!isTest) {
+      const connection = {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+        lazyConnect: true,
+      };
+      this.queue = new Queue('alert-slack', { connection });
+    }
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleDlqAlert() {
+    // skip if queue not initialized (e.g. in tests)
+    if (!this.queue) {
+      return;
+    }
     const failedCount = await this.queue.getFailedCount();
     if (failedCount > this.threshold) {
       if (!this.alertSent) {

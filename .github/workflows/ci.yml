@@ -23,6 +23,15 @@ jobs:
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
+      # Start docker-compose stack for integration tests
+      - name: Start services
+        run: docker-compose -f docker-compose.yml up -d postgres redis rabbitmq
+
+      - name: Wait for services
+        run: |
+          until docker-compose exec -T postgres pg_isready -U postgres; do sleep 2; done
+          until docker-compose exec -T redis redis-cli ping; do sleep 2; done
+
       - name: Lint
         run: pnpm lint
 
@@ -36,4 +45,7 @@ jobs:
 
       - name: Run unit tests only (skip e2e)
         working-directory: api
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: pnpm exec jest --config jest-e2e.json --runInBand --testPathIgnorePatterns e2e
