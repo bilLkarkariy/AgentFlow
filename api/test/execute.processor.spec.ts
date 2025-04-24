@@ -5,16 +5,24 @@ import { GmailService } from '../src/modules/gmail/gmail.service';
 import { Job } from 'bullmq';
 import { AgentDsl } from '../src/modules/agents/dsl-parser.service';
 import { FlowGateway } from 'src/modules/agents/flow/flow.gateway';
+import { RabbitMQService } from '../src/modules/rabbitmq/rabbitmq.service';
 
 describe('ExecuteProcessor', () => {
   let processor: ExecuteProcessor;
   let mockRepo: jest.Mocked<Repository<TaskRun>>;
   let mockGmail: jest.Mocked<GmailService>;
+  let mockRabbit: jest.Mocked<RabbitMQService>;
 
   beforeEach(() => {
     mockRepo = { save: jest.fn() } as unknown as jest.Mocked<Repository<TaskRun>>;
-    mockGmail = {} as unknown as jest.Mocked<GmailService>;
-    processor = new ExecuteProcessor(mockGmail, mockRepo, {} as unknown as FlowGateway);
+    mockGmail = { getLatestEmailSubject: jest.fn().mockResolvedValue('subject') } as unknown as jest.Mocked<GmailService>;
+    mockRabbit = { publish: jest.fn() } as unknown as jest.Mocked<RabbitMQService>;
+    processor = new ExecuteProcessor(
+      mockGmail,
+      mockRepo,
+      {} as unknown as FlowGateway,
+      mockRabbit,
+    );
   });
 
   it('should save a TaskRun for each job execution', async () => {

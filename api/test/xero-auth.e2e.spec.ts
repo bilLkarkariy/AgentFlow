@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
 import { XeroAuthService } from '../src/modules/xero/xero-auth.service';
 import { AuthTokensService } from '../src/modules/auth-tokens/auth-tokens.service';

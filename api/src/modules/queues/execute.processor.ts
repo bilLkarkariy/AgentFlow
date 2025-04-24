@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskRun } from '../tasks/task-run.entity';
 import { FlowGateway } from '../agents/flow/flow.gateway';
+import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 
 export interface ExecuteAgentJob {
   agentId: string;
@@ -24,6 +25,7 @@ export class ExecuteProcessor extends WorkerHost {
     @InjectRepository(TaskRun)
     private readonly taskRunRepo: Repository<TaskRun>,
     private readonly gateway: FlowGateway,
+    private readonly rabbit: RabbitMQService,
   ) {
     super();
   }
@@ -52,11 +54,32 @@ export class ExecuteProcessor extends WorkerHost {
       dsl.trigger?.type === 'gmail.new_email' &&
       dsl.action?.type === 'gmail.read_subject'
     ) {
-      // In real scenario we would fetch token etc.
       this.logger.log(
-        `Would read last email subject from ${dsl.trigger.filter.from}`,
+        `Reading last email subject from ${dsl.trigger.filter.from}`
       );
-      // await this.gmail.getLatestEmailSubject(...)
+      this.gateway?.server?.to(runId).emit('log', {
+        runId,
+        nodeId: 'read_subject_start',
+        status: 'info',
+        timestamp: Date.now(),
+        message: `Lecture du sujet de ${dsl.trigger.filter.from}`,
+      });
+      const subject = await this.gmail.getLatestEmailSubject(
+        dsl.trigger.filter.from
+      );
+      this.gateway?.server?.to(runId).emit('log', {
+        runId,
+        nodeId: 'read_subject',
+        status: 'info',
+        timestamp: Date.now(),
+        message: subject,
+      });
+      // Publish email received event
+      this.rabbit.publish('email.received', {
+        runId,
+        from: dsl.trigger.filter.from,
+        subject,
+      });
     } else {
       this.logger.warn(`Unsupported DSL for agent ${agentId}`);
       this.gateway?.server?.to(runId).emit('log', {

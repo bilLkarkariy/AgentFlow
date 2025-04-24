@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 // Load root .env for Slack E2E channel
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
 
 // Ensure SLACK_BOT_TOKEN and SLACK_E2E_CHANNEL are set in your .env

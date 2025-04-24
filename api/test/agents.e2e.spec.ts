@@ -1,7 +1,7 @@
-import * as request from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../src/modules/app.module';
+import request from 'supertest';
 
 describe('AgentsModule (e2e)', () => {
   let app: INestApplication;

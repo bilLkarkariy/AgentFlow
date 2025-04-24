@@ -15,6 +15,7 @@ describe('Flow logs e2e', () => {
   let httpServerAddr: string;
 
   beforeAll(async () => {
+    process.env.JEST_WORKER_ID = '1';
     const moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

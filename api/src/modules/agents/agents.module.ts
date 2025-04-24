@@ -12,11 +12,13 @@ import { QueuesModule } from '../queues/queues.module';
 import { FlowController } from './flow/flow.controller';
 import { FlowService } from './flow/flow.service';
 import { FlowGateway } from './flow/flow.gateway';
+import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Agent, AgentFlow, AgentFlowNode, AgentFlowEdge]),
     QueuesModule,
+    RabbitMQModule,
   ],
   controllers: [AgentsController, ExecutionController, FlowController],
   providers: [AgentsService, DslParserService, FlowService, FlowGateway],

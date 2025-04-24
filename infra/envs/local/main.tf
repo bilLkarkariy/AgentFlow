@@ -39,6 +39,18 @@ provider "helm" {
 # Helm releases
 ########################
 
+# Variables pour OAuth Gmail
+variable "google_client_id" {
+  description = "Google OAuth client ID"
+  type        = string
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret"
+  type        = string
+  sensitive   = true
+}
+
 resource "helm_release" "argocd" {
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
@@ -73,4 +85,16 @@ resource "helm_release" "keycloak" {
   ]
 
   depends_on = [helm_release.argocd]
+}
+
+# Création d'un Kubernetes Secret pour les credentials Gmail
+resource "kubernetes_secret" "gmail_oauth" {
+  metadata {
+    name      = "gmail-oauth"
+    namespace = "default"
+  }
+  string_data = {
+    GOOGLE_CLIENT_ID     = var.google_client_id
+    GOOGLE_CLIENT_SECRET = var.google_client_secret
+  }
 }

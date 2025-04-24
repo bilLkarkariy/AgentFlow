@@ -15,4 +15,5 @@ dist/
 .idea
 .vscode
 
-docs/*.md
+docs/*
+issues/*

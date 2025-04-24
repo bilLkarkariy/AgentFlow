@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health/health.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsModule } from './agents/agents.module';
@@ -9,7 +10,6 @@ import { RabbitMQModule } from './rabbitmq/rabbitmq.module';
 import { QueuesModule } from './queues/queues.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
-import * as dotenv from 'dotenv';
 import { PennylaneModule } from './pennylane/pennylane.module';
 import { SlackModule } from './slack/slack.module';
 import { XeroModule } from './xero/xero.module';
@@ -26,7 +26,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
 import { TestErrorController } from '../common/controllers/test-error.controller';
 
-dotenv.config();
+// Configuration loaded by ConfigModule
 
 // Fix PG ESM import for TypeORM
 import * as pgPkg from 'pg';
@@ -37,6 +37,7 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       useFactory: () => {
         // Use in-memory SQLite for tests

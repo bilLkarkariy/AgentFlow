@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentFlow DSL Schema v0.1",
+  "type": "object",
+  "required": ["name", "trigger", "action"],
+  "properties": {
+    "name": { "type": "string", "description": "Nom lisible de l'agent" },
+    "description": { "type": "string", "description": "Description optionnelle" },
+    "trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["gmail.new_email"] },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string", "format": "email" },
+            "subject_contains": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["gmail.read_subject"] },
+        "target": { "type": "string", "enum": ["last"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

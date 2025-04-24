@@ -8,6 +8,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { SlackAlertProcessor } from './slack-alert.processor';
 import { SlackModule } from '../slack/slack.module';
 import { FlowGateway } from '../agents/flow/flow.gateway';
+import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FlowGateway } from '../agents/flow/flow.gateway';
     GmailModule,
     SlackModule,
     TasksModule,
+    RabbitMQModule,
   ],
   providers: [GmailProcessor, ExecuteProcessor, SlackAlertProcessor, FlowGateway],
   controllers: [GmailQueueController],

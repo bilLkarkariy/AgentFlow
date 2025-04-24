@@ -21,20 +21,44 @@ Un « agent » AgentFlow doit être défini de façon déclarative (« DSL J
   }
 }``` |
 
-## 3. Spécification DSL (0.1)
-```jsonc
+## 3. Spécification DSL (v0.1)
+
+```json
 {
-  "name": "string",               // Nom lisible
-  "trigger": {
-    "type": "gmail.new_email",    // Enum – uniquement ce type au Sprint 1
-    "filter": {
-      "from": "string"            // Filtre simplifié sur expéditeur
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentFlow DSL Schema v0.1",
+  "type": "object",
+  "required": ["name", "trigger", "action"],
+  "properties": {
+    "name": { "type": "string", "description": "Nom lisible de l'agent" },
+    "description": { "type": "string", "description": "Description optionnelle" },
+    "trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["gmail.new_email"] },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string", "format": "email" },
+            "subject_contains": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["gmail.read_subject"] },
+        "target": { "type": "string", "enum": ["last"] }
+      },
+      "additionalProperties": false
     }
   },
-  "action": {
-    "type": "gmail.read_subject",  // Enum – action unique Sprint 1
-    "target": "last"               // Paramètres spécifiques à l’action
-  }
+  "additionalProperties": false
 }
 ```
 
