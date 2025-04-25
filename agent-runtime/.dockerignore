@@ -1,0 +1,4 @@
+# Ignore dependencies and build output
+dist
+node_modules
+npm-debug.log

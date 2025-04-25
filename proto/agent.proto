@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package agent;
+
+// Defines the Agent service with bidirectional streaming Run method
+service Agent {
+  // Stream request with prompt and parameters, receive streaming responses
+  rpc Run(stream RunRequest) returns (stream RunResponse);
+}
+
+// Request message for Run
+message RunRequest {
+  string prompt = 1;
+  // Generic JSON parameters, use Struct for flexibility
+  .google.protobuf.Struct parameters = 2;
+}
+
+// Response message for Run
+message RunResponse {
+  // The content chunks of the response
+  repeated ResponseContent content = 1;
+}
+
+// Content chunk
+message ResponseContent {
+  // Text of this response chunk
+  string text = 1;
+}
+
+// Import Struct definition
+import "google/protobuf/struct.proto";

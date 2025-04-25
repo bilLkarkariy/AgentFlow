@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package agent;
+
+message RunRequest {
+  string prompt = 1;
+  map<string, string> parameters = 2;
+}
+
+message RunResponse {
+  string token = 1;
+}
+
+service AgentService {
+  rpc Run(stream RunRequest) returns (stream RunResponse);
+}

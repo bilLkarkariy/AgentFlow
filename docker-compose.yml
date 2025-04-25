@@ -54,7 +54,8 @@ services:
 
   api:
     build:
-      context: ./api
+      context: .
+      dockerfile: api/Dockerfile
     environment:
       - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/postgres
       - REDIS_HOST=redis
@@ -76,6 +77,34 @@ services:
     depends_on:
       - rabbitmq
       - redis
+    networks:
+      - default
+
+  crew-runtime:
+    build:
+      context: ./crew-runtime
+      dockerfile: Dockerfile
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=${MODEL_NAME}
+      - CREW_GRPC_PORT=50051
+    ports:
+      - "50051:50051"
+    networks:
+      - default
+
+  agent-runtime:
+    build:
+      context: ./agent-runtime
+      dockerfile: Dockerfile
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=${MODEL_NAME}
+      - CREW_RUNTIME_URL=crew-runtime:50051
+    depends_on:
+      - crew-runtime
+    ports:
+      - "8000:8000"
     networks:
       - default
 

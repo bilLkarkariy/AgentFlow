@@ -60,6 +60,18 @@ Ce document décrit chaque type de nœud disponible dans l’éditeur visuel et 
   - `collection` : nom de la variable contenant la liste
 - **Fonctionnement** : Pour chaque élément de la collection, le flux passe par `body`. Une fois tous traités, le flux reprend via `next`.
 
+## 6. Agent Block
+- **Type** : `agent`
+- **Usage** : Simulation IA via Agent Runtime (`POST /run`).
+- **Handles** :
+  - `target` (Position.Top)
+  - `source` (Position.Bottom)
+- **Propriétés** :
+  - `prompt` (texte du prompt)
+  - `model` (ex. `o4-mini`)
+  - `temperature` (0 à 1)
+- **Fonctionnement** : Drag & drop, saisie du prompt, cliquer **Simulate** pour obtenir et afficher le résultat JSON dans le node.
+
 ---
 
 > **Note** : La validation des cycles empêche les boucles infinies. Le handle `Start` doit être unique.

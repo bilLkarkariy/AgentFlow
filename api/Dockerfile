@@ -1,15 +1,17 @@
 # Stage 1: Install dependencies
 FROM node:18-alpine AS deps
 WORKDIR /app
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN npm install -g pnpm@8.15.0
+COPY api/package.json pnpm-lock.yaml ./
+RUN pnpm install --no-frozen-lockfile
 
 # Stage 2: Build the app
 FROM node:18-alpine AS builder
+RUN npm install -g pnpm@8.15.0
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copy api source into build context
+COPY api/. .
 RUN pnpm run build
 
 # Stage 3: Prepare production image

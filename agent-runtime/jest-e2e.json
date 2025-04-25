@@ -1,0 +1,15 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "./",
+  "testRegex": ".*\\.(e2e\\-spec|spec)\\.ts$",
+  "testTimeout": 30000,
+  "transform": {
+    "^.+\\.(t|j)s$": ["ts-jest", {"tsconfig": "tsconfig.json"}]
+  },
+  "collectCoverageFrom": [
+    "src/**/*.{ts,js}",
+    "!src/**/*.module.ts"
+  ],
+  "coverageDirectory": "coverage",
+  "testEnvironment": "node"
+}

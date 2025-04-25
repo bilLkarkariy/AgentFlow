@@ -4,10 +4,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskRun } from '../tasks/task-run.entity';
 import { Metric } from './metric.entity';
+import { metrics } from '@opentelemetry/api';
 
 @Injectable()
 export class DashboardAggregatorService implements OnModuleInit {
   private readonly logger = new Logger(DashboardAggregatorService.name);
+  private readonly meter = metrics.getMeter('dashboard-aggregator-service');
+  private readonly executionsCounter = this.meter.createCounter('dashboard_executions_count', {
+    description: 'Nombre d’exécutions par jour',
+  });
+  private readonly timeSavedCounter = this.meter.createCounter('dashboard_time_saved_minutes', {
+    description: 'Temps économisé en minutes par jour',
+  });
 
   constructor(
     @InjectRepository(TaskRun)
@@ -33,7 +41,7 @@ export class DashboardAggregatorService implements OnModuleInit {
       .getRawMany<{ date: string; executionsCount: string }>();
 
     const timeSavedPerRun = parseFloat(process.env.TIME_SAVED_PER_RUN || '5');
-    const metrics = rows.map(r => {
+    const dbMetrics = rows.map(r => {
       const m = new Metric();
       m.date = r.date;
       const count = parseInt(r.executionsCount, 10);
@@ -42,9 +50,15 @@ export class DashboardAggregatorService implements OnModuleInit {
       return m;
     });
 
-    if (metrics.length) {
-      await this.metricRepo.save(metrics);
-      this.logger.log(`Aggregated ${metrics.length} new metrics`);
+    // Exporter métriques OTel
+    dbMetrics.forEach(m => {
+      this.executionsCounter.add(m.executionsCount, { date: m.date });
+      this.timeSavedCounter.add(m.timeSavedMinutes, { date: m.date });
+    });
+
+    if (dbMetrics.length) {
+      await this.metricRepo.save(dbMetrics);
+      this.logger.log(`Aggregated ${dbMetrics.length} new metrics`);
     } else {
       this.logger.log('No new metrics to aggregate');
     }
