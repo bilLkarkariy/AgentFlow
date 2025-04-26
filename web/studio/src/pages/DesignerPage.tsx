@@ -16,6 +16,7 @@ import axios from 'axios';
 import NodePalette from '../components/NodePalette';
 import NodeBox from '../components/NodeBox';
 import NodeInspector from '../components/NodeInspector';
+import AgentBlockNode from '../nodes/AgentBlockNode/AgentBlockNode';
 import { nanoid } from 'nanoid';
 
 export default function DesignerPage() {
@@ -133,9 +134,10 @@ export default function DesignerPage() {
       alert('Flow already has a start node');
       return;
     }
-    if (!reactFlowInstance) return;
-    // calculate center using screenToFlowPosition
-    const position = reactFlowInstance.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    // calculate center, fallback if ReactFlow instance not yet available
+    const position = reactFlowInstance
+      ? reactFlowInstance.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+      : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const newNode = { id: nanoid(), type, position, data: { label: type } } as any;
     // add to Zustand store
     storeAddNode(newNode);
@@ -168,6 +170,7 @@ export default function DesignerPage() {
     slackPost: NodeBox,
     condition: NodeBox,
     loop: NodeBox,
+    agent: AgentBlockNode,
   }), []);
 
   return (
@@ -182,24 +185,27 @@ export default function DesignerPage() {
         </div>
         <div className="flex-1 flex">
           <div className="flex-1">
-            <ReactFlow
-              nodeTypes={nodeTypes}
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={_onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onNodeClick={onNodeClick}
-              onPaneClick={onPaneClick}
-              fitView
-              onInit={setReactFlowInstance}
-            >
-              <MiniMap />
-              <Controls />
-              <Background />
-            </ReactFlow>
+            <div className="reactflow-wrapper flex-1 h-full">
+              <ReactFlow
+                nodeTypes={nodeTypes}
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={_onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onNodeClick={onNodeClick}
+                onPaneClick={onPaneClick}
+                fitView
+                onInit={setReactFlowInstance}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <MiniMap />
+                <Controls />
+                <Background />
+              </ReactFlow>
+            </div>
           </div>
           <NodeInspector node={nodes.find((n) => n.id === selectedNodeId)} updateNode={updateNode} />
         </div>

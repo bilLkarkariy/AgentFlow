@@ -10,6 +10,7 @@ const palette: { type: string; label: string }[] = [
   { type: 'slackPost', label: 'Slack Post' },
   { type: 'condition', label: 'Condition' },
   { type: 'loop', label: 'Loop' },
+  { type: 'agent', label: 'Agent Block' },
 ];
 
 export default function NodePalette({ onSelect }: NodePaletteProps) {

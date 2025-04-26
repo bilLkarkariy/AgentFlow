@@ -15,7 +15,8 @@
     "prepare": "husky install",
     "lint": "eslint --ext .js,.ts .",
     "pretest-db": "bash scripts/start_postgres.sh",
-    "test": "pnpm -w run pretest-db && pnpm --filter api... run test"
+    "test": "pnpm -w run pretest-db && pnpm --filter api run test && pnpm --filter web/studio run test",
+    "test:e2e": "pnpm --filter studio run test"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.30.1",

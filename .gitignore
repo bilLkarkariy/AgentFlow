@@ -16,8 +16,32 @@ dist/
 .vscode
 
 docs/*
-issues/*
+issues/sprint1
+issues/sprint2
+issues/sprint3
+issues/sprint4
+issues/sprint5
+issues/sprint6
+issues/sprint7
+issues/sprint8
+issues/sprint9
+issues/sprint10
+issues/sprint11
+
 
 
 **.DS_Store
 **/.DS_Store
+
+test-results/
+**/test-results/
+*storybook.log
+
+# Storybook artifacts
+.storybook/
+storybook-static/
+.chromatic/
+
+# Story assets
+/web/studio/src/stories/assets/
+/web/studio/tests/**/

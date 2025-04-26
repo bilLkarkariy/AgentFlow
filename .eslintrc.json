@@ -28,7 +28,8 @@
     "web/studio/postcss.config.js",
     "web/studio/tailwind.config.ts",
     "web/studio/vite.config.ts",
-    "web/studio/tests/**/*"
+    "web/studio/tests/**/*",
+    "web/studio/vitest.workspace.ts"
   ],
   "rules": {
     "@typescript-eslint/no-explicit-any": "off"

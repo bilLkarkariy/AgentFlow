@@ -10,20 +10,20 @@ test.describe('HubSpot Auth E2E', () => {
         body: JSON.stringify(null),
       })
     );
-    // Stub authorize endpoint
+    // Stub authorize endpoint to return relative URL for OAuth redirect
     await page.route('**/api/hubspot/authorize/*', route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ url: 'http://fake-oauth' }),
-      })
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: '/fake-oauth' }) })
     );
     // Navigate to HubSpot page
     await page.goto('/agents/agent-1/hubspot');
     await expect(page.getByRole('button', { name: /Connect to HubSpot/i })).toBeVisible();
-    // Click and verify redirect
-    await page.click('button:has-text("Connect to HubSpot")');
-    await expect(page).toHaveURL('http://fake-oauth');
+    // Click and wait for navigation to stubbed OAuth URL
+    await Promise.all([
+      page.waitForURL('/fake-oauth'),
+      page.click('button:has-text("Connect to HubSpot")'),
+    ]);
+    // Assert final URL is /fake-oauth (baseURL applied)
+    await expect(page).toHaveURL('/fake-oauth');
   });
 
   test('shows Disconnect and removes credentials', async ({ page }) => {
