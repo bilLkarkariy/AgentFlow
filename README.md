@@ -1,4 +1,69 @@
-# AgentFlow API
+# AgentFlow Monorepo
+
+AgentFlow is a TypeScript-based pnpm monorepo managing multiple workspaces:
+- **api**: NestJS REST API (Slack, Pennylane, Xero OAuth, Stripe, Quonto, Agents)
+- **agent-runtime**: NestJS microservice for Agent Block execution (REST & gRPC) with OpenTelemetry
+- **web/studio**: React low-code studio (Vite, ReactFlow, Zustand, TailwindCSS, Storybook, Playwright, Vitest)
+- **web/dashboard**: React metrics dashboard (Chart.js via react-chartjs-2) with Vite & Cypress
+- **worker**: Background queue processors using BullMQ
+- **infra**: Infrastructure scripts (docker-compose, Terraform, Prometheus & Grafana dashboards)
+
+## Tech Stack
+
+**Core**: Node.js, TypeScript, pnpm workspaces, GitHub Actions CI, ESLint, Prettier, Husky
+
+**Backend**: NestJS, axios, socket.io, TypeORM, PostgreSQL/SQLite, BullMQ, OpenTelemetry SDK & OTLP exporters, prom-client, Jest & Supertest
+
+**Frontend (web/studio)**: React 18, Vite, Zustand, ReactFlow, TailwindCSS, Storybook, Playwright, Vitest
+
+**Frontend (web/dashboard)**: React 18, Vite, Chart.js (react-chartjs-2), Cypress
+
+**Worker & Infra**: NestJS workers, BullMQ, docker-compose, Terraform, Prometheus & Grafana
+
+## Services & Interactions
+
+### API
+- Built with NestJS, provides REST and WebSocket endpoints (e.g., /oauth/xero, /agents/run, /metrics).
+- Modules: Slack, Pennylane, Xero OAuth, Stripe, Quonto, Agents.
+- Uses axios for external calls and TypeORM for database operations.
+- Sends Agent execution requests to agent-runtime (/run) and streams logs to web/studio.
+- Enqueues background tasks to worker via BullMQ (Redis broker).
+
+### Agent Runtime
+- NestJS microservice exposing HTTP REST (/run) and gRPC endpoints.
+- Executes prompts via OpenAI, streams token-level logs over WebSocket.
+- Instrumented with OpenTelemetry, exports traces to OTLP (Tempo).
+
+### Worker
+- Processes background jobs enqueued by API using BullMQ.
+- BullMQ leverages Redis for job queues, retries, backoff, and dead-letter queues.
+- Tasks include customer invoicing (Pennylane, Quonto), Slack notifications, Xero invoice sync.
+
+### web/studio
+- React low-code studio (Vite, ReactFlow) with Zustand for state and TailwindCSS for styling.
+- Provides UI to compose flows with Agent Block nodes.
+- Calls API and listens to WebSocket logs from agent-runtime.
+- Components developed in Storybook; tested with Playwright (E2E) and Vitest (unit).
+
+### web/dashboard
+- React-based metrics dashboard (Vite, Chart.js via react-chartjs-2).
+- Fetches metrics from API’s /metrics endpoints (prom-client).
+- Visualizes usage and cost data; tests with Cypress.
+
+### Infra
+- Docker Compose for local dev: Postgres, Redis, API, agent-runtime, worker, Tempo, Prometheus, Grafana.
+- Terraform manifests for production infrastructure.
+- Prometheus scrapes metrics; Grafana dashboards visualize them.
+
+## Getting Started
+
+```bash
+pnpm install
+pnpm --filter api run start:dev # API
+pnpm --filter agent-runtime run start:dev # Agent runtime
+pnpm --filter web/studio run dev # Studio
+pnpm --filter web/dashboard run dev # Dashboard
+```
 
 ## Xero OAuth Integration
 
@@ -9,19 +74,6 @@
 - **GET** `/oauth/xero/refresh?tenantId=<tenantId>` : rafraîchit le token d'accès pour le tenant spécifié.
 - **GET** `/xero/invoices?tenantId=<tenantId>` : liste les factures Xero du tenant.
 - **POST** `/xero/invoices?tenantId=<tenantId>` : crée une nouvelle facture.
-
-## Getting Started
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start the API in development mode
-pnpm --filter api run start:dev
-
-# Run database migrations (if applicable)
-pnpm --filter api run typeorm migration:run
-```
 
 ## Environment Variables
 

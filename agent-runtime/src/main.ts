@@ -7,6 +7,7 @@ import { AppModule } from './app.module';
 import { Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { OtelInterceptor } from './interceptors/otel.interceptor';
+import { AgentExecutionInterceptor } from './telemetry/agent-execution.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -20,6 +21,7 @@ async function bootstrap() {
   );
   // Register OpenTelemetry interceptor for tracing
   app.useGlobalInterceptors(new OtelInterceptor());
+  app.useGlobalInterceptors(app.get(AgentExecutionInterceptor));
 
   // Setup Swagger
   const config = new DocumentBuilder()

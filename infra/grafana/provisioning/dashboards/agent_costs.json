@@ -1,0 +1,45 @@
+{
+  "title": "Agent Costs",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Cost per Agent",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(agent_execution_price_usd) by (model)",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "usd"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Daily Total Cost",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(agent_execution_price_usd[24h]))",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "usd",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

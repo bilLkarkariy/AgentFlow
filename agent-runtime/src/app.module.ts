@@ -6,6 +6,9 @@ import { join } from 'path';
 import { AgentController } from './controllers/agent.controller';
 import { AgentService } from './services/agent.service';
 import { AgentGrpcController } from './controllers/agent.grpc.controller';
+import { TelemetryModule } from './telemetry/telemetry.module';
+import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import { AgentExecutionMiddleware } from './telemetry/agent-execution.middleware';
 
 @Module({
   imports: [
@@ -23,8 +26,13 @@ import { AgentGrpcController } from './controllers/agent.grpc.controller';
         protoPath: join(__dirname, '../proto/agent.proto'),
       },
     }]),
+    TelemetryModule,
   ],
   controllers: [AgentController, AgentGrpcController],
   providers: [AgentService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AgentExecutionMiddleware).forRoutes({ path: 'run', method: RequestMethod.POST });
+  }
+}
