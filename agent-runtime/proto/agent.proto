@@ -3,8 +3,9 @@ syntax = "proto3";
 package agent;
 
 message RunRequest {
-  string prompt = 1;
+  string dsl = 1;
   map<string, string> parameters = 2;
+  string toolsJson = 3;
 }
 
 message RunResponse {

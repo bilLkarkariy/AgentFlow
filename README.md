@@ -55,6 +55,26 @@ AgentFlow is a TypeScript-based pnpm monorepo managing multiple workspaces:
 - Terraform manifests for production infrastructure.
 - Prometheus scrapes metrics; Grafana dashboards visualize them.
 
+## CI pour agent-runtime
+La CI dédiée au microservice `agent-runtime` est définie dans `.github/workflows/ci-agent-runtime.yml`. Elle :
+- Build & test le service NestJS (`pnpm --filter agent-runtime run build && test`)
+- Builde et push l'image Docker sur GHCR
+- Démarre la stack CI (`docker-compose -f docker-compose.ci.yml up -d`)
+- Vérifie que l'endpoint `/metrics` retourne HTTP 200 et `text/plain`
+
+## Observabilité (agent-runtime)
+Pour démarrer la stack d’observabilité :
+```bash
+docker-compose -f docker-compose.observability.yml up -d
+```
+- **OTel Collector** (gRPC 4317, HTTP 4318)
+- **Prometheus** (UI : http://localhost:9090)
+- **Grafana** (UI : http://localhost:3000, user `admin`, pwd `secret`)
+- **agent-runtime** exposant `/metrics` sur le port 8000
+
+Consulter les métriques Prometheus : http://localhost:9090/targets et scrape `/metrics`.
+Consulter Grafana pour vos dashboards.
+
 ## Getting Started
 
 ```bash

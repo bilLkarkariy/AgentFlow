@@ -1,0 +1,83 @@
+name: CI Agent Runtime
+
+on:
+  push:
+    branches: [main, dev, feature/**]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  agent-runtime-ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports: ["5672:5672", "15672:15672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable && corepack prepare pnpm@8 --activate
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build agent-runtime
+        working-directory: ./agent-runtime
+        run: pnpm run build
+
+      - name: Run tests
+        working-directory: ./agent-runtime
+        run: pnpm exec jest --detectOpenHandles --config jest-e2e.json
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: ./agent-runtime
+          file: ./agent-runtime/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/agent-runtime:latest
+
+      - name: Start services
+        run: docker-compose -f docker-compose.ci.yml up -d
+
+      - name: Wait for /metrics
+        run: |
+          until curl --silent http://localhost:8000/metrics > /dev/null; do sleep 2; done
+
+      - name: Test /metrics endpoint
+        run: |
+          curl -I http://localhost:8000/metrics | grep "HTTP" 
+          curl -I http://localhost:8000/metrics | grep "text/plain"

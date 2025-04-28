@@ -6,7 +6,7 @@ AgentFlow PME est une plateforme d’automatisation **hybride** : un studio low
 Avec un éditeur visuel, plus de 60 connecteurs natifs (Pennylane, HubSpot, Xero…), et une bibliothèque de **Blocks Agents** (rédaction, classification, extraction, conformité RGPD), les équipes non techniques conçoivent, testent et déploient leurs automatisations sans code, tout en bénéficiant d’IA avancée lorsque nécessaire.
 
 ## Elevator Pitch
-« Créez vos workflows ET vos agents IA dans la même interface : avec AgentFlow, les PME automatisent facturation, support et conformité en 5 minutes — zéro ligne de code, 100 % RGPD, hébergé en Europe. »
+« Créez vos workflows ET vos agents IA multi-agents collaboratifs dans la même interface : avec AgentFlow, les PME automatisent facturation, support et conformité en 5 minutes — zéro ligne de code, 100 % RGPD, hébergé en Europe. »
 
 ## Description détaillée
 - **Studio Low‑Code/No‑Code** : éditeur drag‑and‑drop + langage naturel.

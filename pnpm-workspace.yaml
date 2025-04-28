@@ -4,3 +4,4 @@ packages:
   - 'worker'
   - 'infra'
   - 'agent-runtime'
+  - 'agent-library'

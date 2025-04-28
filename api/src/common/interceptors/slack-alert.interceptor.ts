@@ -1,4 +1,4 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Observable, throwError } from 'rxjs';
@@ -19,6 +19,10 @@ export class SlackAlertInterceptor implements NestInterceptor {
     console.log('[SlackAlertInterceptor] intercept', req.method, req.url);
     return next.handle().pipe(
       catchError(err => {
+        const status = err instanceof HttpException ? err.getStatus() : 500;
+        if (status < 500) {
+          return throwError(() => err);
+        }
         const path = req.url;
         const method = req.method;
         const payload = {

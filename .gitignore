@@ -45,3 +45,7 @@ storybook-static/
 # Story assets
 /web/studio/src/stories/assets/
 /web/studio/tests/**/
+
+# Python compiled artefacts
+crew-runtime/
+openai-agent-runtime/

@@ -2,6 +2,7 @@ import request from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
+import { AgentService } from '../src/services/agent.service';
 
 describe('Agent Runtime (e2e)', () => {
   let app: INestApplication;
@@ -9,7 +10,17 @@ describe('Agent Runtime (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+    .overrideProvider(AgentService)
+    .useValue({ run: async () => ({
+      output_text: JSON.stringify({
+        platform: 'TestPlatform',
+        startDate: '2025-05-01',
+        renewalDate: '2026-05-01',
+        manageUrl: 'http://example.com',
+      }),
+    }) })
+    .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));

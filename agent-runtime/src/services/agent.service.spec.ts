@@ -1,30 +1,21 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { AgentService } from './agent.service';
+import { ClientGrpc } from '@nestjs/microservices';
+import { of } from 'rxjs';
 
 describe('AgentService', () => {
   let service: AgentService;
+  let mockStub: { Run: jest.Mock };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AgentService,
-        { provide: ConfigService, useValue: { get: jest.fn(() => 'fake_key') } },
-      ],
-    }).compile();
-
-    service = module.get<AgentService>(AgentService);
+  beforeEach(() => {
+    mockStub = { Run: jest.fn().mockReturnValue(of({ token: JSON.stringify({ result: 42 }) })) };
+    const mockClient = { getService: () => mockStub } as Partial<ClientGrpc>;
+    service = new AgentService(mockClient as ClientGrpc);
+    service.onModuleInit();
   });
 
-  it('should call Responses API and return response', async () => {
-    const mockRes = { output_text: 'test-text', output: [] };
-    // Mock openai.responses.create
-    (service as any).openai.responses = { create: jest.fn().mockResolvedValue(mockRes) };
-
-    const res = await service.run('prompt', {});
-    expect((service as any).openai.responses.create).toHaveBeenCalledWith(
-      expect.objectContaining({ input: expect.any(Array) }),
-    );
-    expect(res).toBe(mockRes);
+  it('should call AgentService.Run and parse JSON response', async () => {
+    const result = await service.run('prompt', {});
+    expect(mockStub.Run).toHaveBeenCalledWith({ prompt: 'prompt', parameters: {}, toolsJson: JSON.stringify([]) });
+    expect(result).toEqual({ result: 42 });
   });
 });

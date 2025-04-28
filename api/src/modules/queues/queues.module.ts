@@ -9,19 +9,26 @@ import { SlackAlertProcessor } from './slack-alert.processor';
 import { SlackModule } from '../slack/slack.module';
 import { FlowGateway } from '../agents/flow/flow.gateway';
 import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
+import { AgentRunProcessor } from './agent-run.processor';
+import { AgentRuntimeModule } from '../agent-runtime/agent-runtime.module';
+
+// Removed gRPC client registration; using AgentRuntimeModule for gRPC
 
 @Module({
   imports: [
+    ...(process.env.JEST_WORKER_ID ? [] : []),
     BullModule.registerQueue({ name: 'gmail' }),
     BullModule.registerQueue({ name: 'execute-agent' }),
     BullModule.registerQueue({ name: 'agents' }),
+    BullModule.registerQueue({ name: 'agent-run' }),
     BullModule.registerQueue({ name: 'alert-slack' }),
     GmailModule,
     SlackModule,
     TasksModule,
     RabbitMQModule,
+    AgentRuntimeModule,
   ],
-  providers: [GmailProcessor, ExecuteProcessor, SlackAlertProcessor, FlowGateway],
+  providers: [GmailProcessor, ExecuteProcessor, SlackAlertProcessor, FlowGateway, AgentRunProcessor],
   controllers: [GmailQueueController],
   exports: [
     BullModule.registerQueue({ name: 'agents' })

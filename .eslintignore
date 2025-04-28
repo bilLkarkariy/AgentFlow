@@ -1,0 +1,4 @@
+# Ignore test directories and spec/test files
+**/test/**
+**/*.spec.ts
+**/*.test.ts

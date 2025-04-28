@@ -1,30 +1,32 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+import { Injectable, InternalServerErrorException, Logger, OnModuleInit, Inject } from '@nestjs/common';
+import { ClientGrpc } from '@nestjs/microservices';
+import { Observable } from 'rxjs';
+import type { OpenAIToolDefinition } from '@agentflow/agent-library';
 
 @Injectable()
-export class AgentService {
-  private readonly openai: OpenAI;
+export class AgentService implements OnModuleInit {
   private readonly logger = new Logger(AgentService.name);
 
-  constructor(private readonly config: ConfigService) {
-    this.openai = new OpenAI({
-      apiKey: this.config.get<string>('OPENAI_API_KEY') || process.env.OPENAI_API_KEY,
-    });
+  private agentStub: any;
+
+  constructor(@Inject('AGENT_PACKAGE') private readonly client: ClientGrpc) {}
+
+  onModuleInit() {
+    this.agentStub = this.client.getService<any>('AgentService');
   }
 
-  async run(prompt: string, parameters: Record<string, any> = {}) {
+  async run(dsl: string, parameters: Record<string, any> = {}, tools: OpenAIToolDefinition[] = []) {
     try {
-      // Summarize block via Responses API
-      const systemPrompt = parameters.systemPrompt || 'Summarize the following text:';
-      const response = await this.openai.responses.create({
-        model: parameters.model || process.env.OPENAI_MODEL || 'o4-mini',
-        input: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt },
-        ],
+      const stream: Observable<{ token: string }> = this.agentStub.Run({ prompt: dsl, parameters, toolsJson: JSON.stringify(tools) });
+      let output = '';
+      await new Promise<void>((resolve, reject) => {
+        stream.subscribe({
+          next: (res) => (output += `${res.token} `),
+          error: reject,
+          complete: () => resolve(),
+        });
       });
-      return response;
+      return JSON.parse(output.trim());
     } catch (err) {
       this.logger.error(err);
       throw new InternalServerErrorException('Agent execution failed');

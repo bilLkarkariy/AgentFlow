@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { readFileSync } from 'fs';
+import * as fs from 'fs';
 import { join } from 'path';
 import { Provider } from './providers.enum';
 
@@ -14,7 +14,7 @@ export class PricingService {
   constructor() {
     const filePath = join(__dirname, 'models_pricing.json');
     try {
-      const raw = readFileSync(filePath, 'utf8');
+      const raw = fs.readFileSync(filePath, 'utf8');
       this.pricing = JSON.parse(raw);
       this.logger.log(`Loaded models_pricing.json with ${Object.keys(this.pricing).length} providers`);
     } catch (err) {

@@ -2,7 +2,7 @@
   "root": true,
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": ["./api/tsconfig.json","./agent-runtime/tsconfig.json","./web/dashboard/tsconfig.json","./web/studio/tsconfig.json"],
+    "project": ["./api/tsconfig.json","./agent-runtime/tsconfig.json","./agent-library/tsconfig.json","./web/dashboard/tsconfig.json","./web/studio/tsconfig.json"],
     "tsconfigRootDir": ".",
     "createDefaultProgram": true
   },
@@ -29,7 +29,12 @@
     "web/studio/tailwind.config.ts",
     "web/studio/vite.config.ts",
     "web/studio/tests/**/*",
-    "web/studio/vitest.workspace.ts"
+    "web/studio/vitest.workspace.ts",
+    "agent-library/jest.config.js",
+    "agent-library/**/*.js",
+    "agent-library/**/*.js.map",
+    "agent-library/**/*.d.ts",
+    "**/*.spec.ts"
   ],
   "rules": {
     "@typescript-eslint/no-explicit-any": "off"

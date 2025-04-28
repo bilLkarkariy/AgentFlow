@@ -9,6 +9,9 @@ import { AgentGrpcController } from './controllers/agent.grpc.controller';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import { AgentExecutionMiddleware } from './telemetry/agent-execution.middleware';
+import { MetricsModule } from './metrics/metrics.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { OtelInterceptor } from './interceptors/otel.interceptor';
 
 @Module({
   imports: [
@@ -21,15 +24,19 @@ import { AgentExecutionMiddleware } from './telemetry/agent-execution.middleware
       name: 'AGENT_PACKAGE',
       transport: Transport.GRPC,
       options: {
-        url: process.env.CREW_RUNTIME_URL || 'localhost:50051',
+        url: process.env.CREW_RUNTIME_URL || 'localhost:50051', // internal
         package: 'agent',
         protoPath: join(__dirname, '../proto/agent.proto'),
       },
     }]),
     TelemetryModule,
+    MetricsModule, // expose /metrics endpoint
   ],
   controllers: [AgentController, AgentGrpcController],
-  providers: [AgentService],
+  providers: [
+    AgentService,
+    { provide: APP_INTERCEPTOR, useClass: OtelInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -1,3 +1,4 @@
+jest.mock('fs', () => ({ readFileSync: jest.fn() }));
 import { PricingService } from './pricing.service';
 import { Provider } from './providers.enum';
 import * as fs from 'fs';
@@ -9,11 +10,11 @@ describe('PricingService', () => {
   const sampleJson = JSON.stringify(sampleData);
 
   beforeEach(() => {
-    jest.spyOn(fs, 'readFileSync').mockReturnValue(sampleJson);
+    (fs.readFileSync as jest.Mock).mockReturnValue(sampleJson);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    jest.resetAllMocks();
   });
 
   it('should load pricing data on init', () => {
@@ -38,7 +39,7 @@ describe('PricingService', () => {
   });
 
   it('should handle JSON read errors gracefully', () => {
-    jest.spyOn(fs, 'readFileSync').mockImplementation(() => { throw new Error('fail'); });
+    (fs.readFileSync as jest.Mock).mockImplementation(() => { throw new Error('fail'); });
     const service = new PricingService();
     expect(() => service.getRates(Provider.OpenAI, 'foo')).toThrow();
   });

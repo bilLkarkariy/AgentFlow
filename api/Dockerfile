@@ -1,25 +1,30 @@
-# Stage 1: Install dependencies
-FROM node:18-alpine AS deps
+# Consolidate into builder and runner stages
+FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm@8.15.0
-COPY api/package.json pnpm-lock.yaml ./
-RUN pnpm install --no-frozen-lockfile
+# Install pnpm and Nest CLI globally
+RUN npm install -g pnpm@8.15.0 @nestjs/cli@10.3.0
 
-# Stage 2: Build the app
-FROM node:18-alpine AS builder
-RUN npm install -g pnpm@8.15.0
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-# Copy api source into build context
-COPY api/. .
+# Copy monorepo config and API workspace manifest for install
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY api ./api
+COPY proto ./proto
+WORKDIR /app/api
+# Install only API workspace dependencies (including dev for build)
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm run build
 
-# Stage 3: Prepare production image
-FROM node:18-alpine AS runner
+# Runner stage: minimal image with runtime deps
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# Copy built files and deps
-COPY --from=builder /app/dist ./dist
-COPY --from=deps /app/node_modules ./node_modules
+# Copy API package manifest and install production deps
+COPY api/package.json ./package.json
+RUN npm install --only=production
+# Copy build output
+COPY --from=builder /app/api/dist ./dist
+COPY proto ./dist/
+
+COPY .env .env
+
 EXPOSE 3000
 CMD ["node", "dist/main"]

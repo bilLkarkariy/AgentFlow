@@ -25,6 +25,7 @@ import { HubspotModule } from './hubspot/hubspot.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
 import { TestErrorController } from '../common/controllers/test-error.controller';
+import { AgentRuntimeModule } from './agent-runtime/agent-runtime.module';
 
 // Configuration loaded by ConfigModule
 
@@ -90,6 +91,7 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     FlowLogsModule,
     DLQModule,
     HubspotModule,
+    AgentRuntimeModule,
   ],
   controllers: [HealthController, TestErrorController],
   providers: [

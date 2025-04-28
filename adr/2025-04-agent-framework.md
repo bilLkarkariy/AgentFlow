@@ -5,18 +5,19 @@ status: accepted
 ---
 
 ## Context
-Le pivot vers une architecture multi-agents nécessite un moteur robuste, extensible et intégré à notre monorepo NestJS. Un spike a comparé LangGraph et CrewAI.
+Le pivot vers une architecture multi-agents nécessite un moteur robuste, extensible et intégré à notre monorepo NestJS. Un spike a comparé LangGraph, CrewAI et OpenAI Agent SDK.
 
 ## Decision
-Choix de **CrewAI** comme framework principal pour la création de nos AgentBlocks IA.
+Choix de **OpenAI Agent SDK** comme framework principal pour la création de nos AgentBlocks IA.
 
 ### Justifications
-- Orchestration native multi-agents et workflows avancés.
-- Observabilité intégrée (OpenTelemetry, dashboard UI).
-- SDK Python & TypeScript pour une intégration rapide.
-- Communauté active et support commercial de CrewAI.
+- Support natif des modèles avancés GPT-4o et o4-mini.
+- Orchestration multi-agents et outils intégrés (function calling).
+- Performance supérieure et coûts optimisés.
+- Documentation complète et roadmap claire d'OpenAI.
 
 ## Consequences
-- Implémentation initiale via micro-service Python `agent-runtime` avec gRPC.
-- Préparation d’un SDK JS pour migration vers TypeScript en fin Sprint 6.
+- Intégration directe via notre service `agent-runtime` avec API REST/gRPC.
+- Réduction de la complexité d'infrastructure (pas de dépendance Python).
+- Mise à jour des métriques de coûts pour tracking précis par agent.
 - Mise à jour de la documentation (PRD, README).

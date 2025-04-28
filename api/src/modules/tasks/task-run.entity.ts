@@ -15,4 +15,7 @@ export class TaskRun {
     default: () => 'CURRENT_TIMESTAMP',
   })
   executedAt: Date;
+
+  @Column({ type: 'varchar', default: 'flow' })
+  taskType: 'flow' | 'agent';
 }
