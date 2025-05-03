@@ -57,4 +57,5 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-        run: pnpm --filter @agentflow/api run test:e2e
+          NODE_OPTIONS: --max-old-space-size=2048
+        run: pnpm --filter @agentflow/api run test:e2e -- --runInBand
