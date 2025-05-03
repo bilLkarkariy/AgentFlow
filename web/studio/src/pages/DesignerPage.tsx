@@ -7,73 +7,109 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
+  applyEdgeChanges
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useFlowStore } from '../store/useFlowStore';
-import axios from 'axios';
+import { useAgentFlow, useSaveAgentFlow, useRunAgentFlow } from '../entities/agent/api';
 import NodePalette from '../components/NodePalette';
 import NodeBox from '../components/NodeBox';
 import NodeInspector from '../components/NodeInspector';
 import AgentBlockNode from '../nodes/AgentBlockNode/AgentBlockNode';
 import { nanoid } from 'nanoid';
+import TestBar from '../components/TestBar';
+import { AgentConfigPanel } from '../components/AgentConfigPanel';
+import { io, Socket } from 'socket.io-client';
+import RunsList from '../components/RunsList';
+import LogsTimeline from '../components/LogsTimeline';
 
 export default function DesignerPage() {
   const { agentId } = useParams<{ agentId: string }>();
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
   const navigate = useNavigate();
 
-  const { nodes: storeNodes, edges: storeEdges, selectedNodeId, setSelectedNode, updateNodeData, setNodes: setStoreNodes, setEdges: setStoreEdges, addNode: storeAddNode, addEdge: storeAddEdge } = useFlowStore();
-  const [nodes, setNodesRf, _onNodesChange] = useNodesState(storeNodes);
-  const [edges, setEdgesRf, _onEdgesChange] = useEdgesState(storeEdges);
+  // Run state
+  const [runId, setRunId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [controlSocket, setControlSocket] = useState<Socket | null>(null);
+  const [logSocket, setLogSocket] = useState<Socket | null>(null);
 
-  // load on mount
+  const { nodes: storeNodes, edges: storeEdges, selectedNodeId, setSelectedNode, updateNodeData, setNodes: setStoreNodes, setEdges: setStoreEdges, addNode: storeAddNode, addEdge: storeAddEdge } = useFlowStore();
+  const mappings = useFlowStore((s) => s.mappings);
+  const setMappings = useFlowStore((s) => s.setMappings);
+  const [nodes, setNodesRf, _onNodesChange] = useNodesState(storeNodes);
+  const [edges, setEdgesRf] = useEdgesState(storeEdges);
+  const { data: flowData } = useAgentFlow(agentId!);
+  const saveMutation = useSaveAgentFlow(agentId!);
+  const runMutation = useRunAgentFlow();
+
   useEffect(() => {
-    if (!agentId) return;
-    axios.get(`${baseUrl}/agents/${agentId}/flow`).then((res) => {
-      const loadedNodes = res.data.nodes.map((n: any) => ({
-        id: n.id,
-        type: n.type,
-        position: { x: n.positionX, y: n.positionY },
-        data: n.data,
-      }));
-      const loadedEdges = res.data.edges.map((e: any) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        label: e.label,
-      }));
-      // update both React Flow and Zustand store
-      setNodesRf(loadedNodes);
-      setEdgesRf(loadedEdges);
-      setStoreNodes(loadedNodes);
-      setStoreEdges(loadedEdges);
-    });
-  }, [agentId, setStoreNodes, setStoreEdges]);
+    if (!flowData) return;
+    const loadedNodes = flowData.nodes.map((n) => ({ id: n.id, type: n.type, position: { x: n.positionX, y: n.positionY }, data: n.data }));
+    const loadedEdges = flowData.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label }));
+    setNodesRf(loadedNodes);
+    setEdgesRf(loadedEdges);
+    setStoreNodes(loadedNodes);
+    setStoreEdges(loadedEdges);
+    setMappings(flowData.mappings ?? []);
+  }, [flowData, setStoreNodes, setStoreEdges]);
 
   const save = () => {
     if (!agentId) return;
-    axios.put(`${baseUrl}/agents/${agentId}/flow`, {
+    saveMutation.mutate({
       nodes: nodes.map((n) => ({
         id: n.id,
-        type: n.type,
+        type: n.type!,
         positionX: n.position.x,
         positionY: n.position.y,
         data: n.data,
       })),
-      edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
+      edges: edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: typeof e.label === 'string' ? e.label : undefined,
+      })),
+      mappings: mappings,
     });
   };
 
   const runFlow = async () => {
     if (!agentId) return;
-    const res = await axios.post(`${baseUrl}/agents/${agentId}/flow/execute`);
-    const runId = res.data.runId;
-    navigate(`/runs/${runId}`);
+    // start run and get runId
+    const res = await runMutation.mutateAsync(agentId!);
+    setRunId(res.runId);
   };
 
-  // React Flow handlers
+  // Setup control socket
+  useEffect(() => {
+    if (!runId) return;
+    const base = import.meta.env.VITE_API_URL ?? window.location.origin;
+    const sock = io(base, { path: '/ws' });
+    setControlSocket(sock);
+    return () => { sock.disconnect(); };
+  }, [runId]);
+
+  // Setup log socket
+  useEffect(() => {
+    if (!runId) return;
+    const base = import.meta.env.VITE_API_URL ?? window.location.origin;
+    const sock = io(`${base}/ws/flow`);
+    sock.on('connect', () => sock.emit('join', { runId }));
+    sock.on('tokens', () => setProgress(p => p + 1));
+    setLogSocket(sock);
+    return () => { sock.disconnect(); };
+  }, [runId]);
+
+  const stepFlow = () => {
+    console.log('[DEBUG] stepFlow');
+  };
+
+  const stopFlow = () => {
+    if (controlSocket && runId) {
+      controlSocket.emit('control', { op: 'cancel', runId });
+    }
+  };
+
   const onNodeClick = (_: any, node: any) => {
     console.log('[DEBUG] onNodeClick', node.id);
     setSelectedNode(node.id);
@@ -85,9 +121,8 @@ export default function DesignerPage() {
   };
 
   const onEdgesChange = (changes: any) => setEdgesRf((eds) => applyEdgeChanges(changes, eds));
-  
+
   const willCreateCycle = (source: string, target: string, edgesList: any[]): boolean => {
-    // simple DFS from target to see if source is reachable
     const adj: Record<string, string[]> = {};
     edgesList.forEach((e) => {
       adj[e.source] = adj[e.source] ? [...adj[e.source], e.target] : [e.target];
@@ -105,7 +140,6 @@ export default function DesignerPage() {
   };
 
   const onConnect = (connection: any) => {
-    // prevent cycles
     if (willCreateCycle(connection.source, connection.target, edges)) {
       alert('Cycle not allowed');
       return;
@@ -118,7 +152,6 @@ export default function DesignerPage() {
 
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
-  // helper to update node data both in RF local state and zustand store
   const updateNode = (id: string, patch: any) => {
     console.log('[DEBUG] updateNode', id, patch);
     setNodesRf((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
@@ -134,14 +167,11 @@ export default function DesignerPage() {
       alert('Flow already has a start node');
       return;
     }
-    // calculate center, fallback if ReactFlow instance not yet available
     const position = reactFlowInstance
       ? reactFlowInstance.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
       : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const newNode = { id: nanoid(), type, position, data: { label: type } } as any;
-    // add to Zustand store
     storeAddNode(newNode);
-    // update React Flow state
     setNodesRf((nds) => [...nds, newNode]);
   }, [reactFlowInstance, storeAddNode, nodes]);
 
@@ -173,15 +203,23 @@ export default function DesignerPage() {
     agent: AgentBlockNode,
   }), []);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        save();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [save]);
+
   return (
     <div className="h-screen flex">
       <NodePalette onSelect={addNodeAtCenter} />
       <div className="flex-1 flex flex-col">
         <div className="p-2 bg-gray-100 flex gap-2">
-          <button onClick={save} className="bg-blue-600 text-white px-3 py-1 rounded">Save</button>
-          <button onClick={runFlow} className="bg-green-600 text-white px-3 py-1 rounded">
-            Run
-          </button>
+          <TestBar onSave={save} onRun={runFlow} onStep={stepFlow} onStop={stopFlow} progress={progress} />
         </div>
         <div className="flex-1 flex">
           <div className="flex-1">
@@ -207,7 +245,12 @@ export default function DesignerPage() {
               </ReactFlow>
             </div>
           </div>
-          <NodeInspector node={nodes.find((n) => n.id === selectedNodeId)} updateNode={updateNode} />
+          <div className="side-panel w-64 p-2 border-l flex flex-col overflow-auto space-y-4">
+            <NodeInspector node={nodes.find((n) => n.id === selectedNodeId)} updateNode={updateNode} />
+            <AgentConfigPanel />
+            {agentId && <RunsList agentId={agentId} />}
+            {runId && <LogsTimeline runId={runId} />}
+          </div>
         </div>
       </div>
     </div>

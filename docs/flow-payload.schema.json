@@ -1,0 +1,54 @@
+{
+  "$id": "https://agentflow.ai/schemas/flow-payload-v1.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["runId", "agents"],
+  "properties": {
+    "runId": { "type": "string" },
+    "traceId": { "type": "string" },
+    "input": { "type": "string" },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "instructions"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "instructions": { "type": "string" },
+          "model": { "type": "string", "default": "gpt-4o-mini" },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "description", "parameters", "toolType", "toolId"],
+              "properties": {
+                "name": { "type": "string" },
+                "description": { "type": "string" },
+                "parameters": { "type": "object" },
+                "toolType": { "type": "string", "enum": ["backend", "function"] },
+                "toolId": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": [ { "type": "string" }, { "type": "string" } ]
+      },
+      "description": "[fromId, toId] pairs; flow_runner builds handoff tools"
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "max_turns": { "type": "integer", "default": 8 }
+      }
+    }
+  }
+}

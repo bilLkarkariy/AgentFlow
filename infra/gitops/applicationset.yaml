@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: agent-services-appset
+spec:
+  generators:
+    - list:
+        elements:
+          - chart: agent-runtime
+            path: charts/agent-runtime
+          - chart: agent-library
+            path: charts/agent-library
+  template:
+    metadata:
+      name: '{{chart}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/bilLkarkariy/AgentFlow.git'
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: '{{chart}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

@@ -1,7 +1,0 @@
-openai-agents==0.0.13
-grpcio>=1.56.0,<2.0.0
-grpcio-tools>=1.56.0,<2.0.0
-pydantic>=2.10,<3.0
-openai>=1.14.0,<2.0.0
-celery>=5.3,<6.0
-redis>=4.0,<5.0

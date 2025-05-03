@@ -8,6 +8,9 @@ export class NodeDto {
   @IsString()
   type: string;
 
+  @IsString()
+  category: string;
+
   @IsNumber()
   positionX: number;
 
@@ -32,6 +35,14 @@ export class EdgeDto {
   label?: string;
 }
 
+export class MappingDto {
+  @IsString()
+  output: string;
+
+  @IsString()
+  input: string;
+}
+
 export class FlowDto {
   @IsArray()
   @ValidateNested({ each: true })
@@ -42,4 +53,9 @@ export class FlowDto {
   @ValidateNested({ each: true })
   @Type(() => EdgeDto)
   edges: EdgeDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MappingDto)
+  mappings: MappingDto[];
 }

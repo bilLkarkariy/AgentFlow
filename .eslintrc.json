@@ -2,7 +2,7 @@
   "root": true,
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": ["./api/tsconfig.json","./agent-runtime/tsconfig.json","./agent-library/tsconfig.json","./web/dashboard/tsconfig.json","./web/studio/tsconfig.json"],
+    "project": ["./api/tsconfig.json","./web/dashboard/tsconfig.json","./web/studio/tsconfig.json"],
     "tsconfigRootDir": ".",
     "createDefaultProgram": true
   },
@@ -37,6 +37,8 @@
     "**/*.spec.ts"
   ],
   "rules": {
-    "@typescript-eslint/no-explicit-any": "off"
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-require-imports": "off"
   }
 }

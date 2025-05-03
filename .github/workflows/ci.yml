@@ -42,10 +42,15 @@ jobs:
       - name: Build Frontend
         working-directory: ./web/dashboard
         run: pnpm run build
-
+      - name: Build Studio
+        working-directory: ./web/studio
+        run: pnpm run build
       - name: Run unit tests (API)
         working-directory: ./api
         run: pnpm --filter @agentflow/api run test:unit
+      - name: Run unit tests (Studio)
+        working-directory: ./web/studio
+        run: pnpm run test:unit
 
       - name: Run e2e tests (API)
         working-directory: ./api

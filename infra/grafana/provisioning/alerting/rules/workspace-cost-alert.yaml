@@ -1,0 +1,12 @@
+groups:
+  - name: workspace-cost-alerts
+    interval: 1m
+    rules:
+      - alert: WorkspaceHighDailyCost
+        expr: sum(increase(agent_price_usd_total[24h])) by (workspace) > 5
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "High daily cost for workspace {{ $labels.workspace }}"
+          description: "Workspace {{ $labels.workspace }} spent {{ printf \"%.2f\" $value }} USD in the last 24h."

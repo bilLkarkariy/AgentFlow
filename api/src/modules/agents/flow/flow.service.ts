@@ -28,7 +28,7 @@ export class FlowService {
     if (!flow) {
       const agent = await this.agentRepo.findOne({ where: { id: agentId } });
       if (!agent) throw new NotFoundException('Agent not found');
-      flow = await this.flowRepo.save({ agent, name: 'default', version: 1, nodes: [], edges: [] });
+      flow = await this.flowRepo.save({ agent, name: 'default', version: 1, nodes: [], edges: [], mappings: [] });
     }
     return flow;
   }
@@ -38,6 +38,7 @@ export class FlowService {
       nodes: flow.nodes.map<NodeDto>((n) => ({
         id: n.extId,
         type: n.type,
+        category: n.category,
         positionX: n.posX,
         positionY: n.posY,
         data: n.config,
@@ -48,6 +49,7 @@ export class FlowService {
         target: e.targetId,
         label: e.label,
       })),
+      mappings: flow.mappings,
     };
   }
 
@@ -67,6 +69,7 @@ export class FlowService {
         flow,
         extId: n.id,
         type: n.type,
+        category: n.category,
         posX: n.positionX,
         posY: n.positionY,
         config: n.data,
@@ -82,6 +85,7 @@ export class FlowService {
     );
     flow.nodes = await this.nodeRepo.save(nodes);
     flow.edges = await this.edgeRepo.save(edges);
+    flow.mappings = dto.mappings;
     await this.flowRepo.save(flow);
     return this.toDto(flow);
   }

@@ -1,4 +1,5 @@
 import './otel-sdk';
+import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { NestFactory } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ValidationPipe } from '@nestjs/common';
@@ -8,9 +9,10 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './modules/app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { raw } from 'body-parser';
+import { OtelInterceptor } from './common/interceptors/otel.interceptor';
 
-// Load .env from project root (two levels up from api/src)
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load .env from working directory
+dotenv.config();
 
 // Hardening: Validate essential environment variables
 const requiredEnv = ['POSTGRES_URL', 'REDIS_HOST', 'REDIS_PORT'];
@@ -25,12 +27,15 @@ async function bootstrap() {
   console.log('POSTGRES_URL', process.env.POSTGRES_URL);
 
   const app = await NestFactory.create(AppModule);
+  // Enable x-request-id propagation
+  app.use(requestIdMiddleware);
   app.enableCors();
   app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalInterceptors(new OtelInterceptor());
   // Enable WebSocket adapter for Socket.IO gateways
   app.useWebSocketAdapter(new IoAdapter(app));
   const config = new DocumentBuilder()

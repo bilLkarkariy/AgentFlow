@@ -20,7 +20,7 @@ export class ExecutionController {
     }
     // Convert DSL object to string prompt
     const prompt = typeof agent.dsl === 'string' ? agent.dsl : JSON.stringify(agent.dsl);
-    const responses = await firstValueFrom(
+    const responses: Array<{ token: string }> = await firstValueFrom(
       this.agentPython.runAgent({ prompt, parameters: {} }).pipe(toArray()),
     );
     const chunks = responses.map(r => r.token);

@@ -10,13 +10,20 @@
     "test:unit": "jest",
     "test:e2e": "playwright test --project=chromium",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "lint": "eslint src --ext .ts,.tsx",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@tanstack/react-query": "^5.36.1",
     "axios": "^1.4.0",
+    "framer-motion": "^12.9.2",
     "nanoid": "^5.0.4",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "react-hot-toast": "^2.5.2",
     "react-router-dom": "^6.11.1",
     "reactflow": "^11.11.4",
     "socket.io-client": "^4.7.5",

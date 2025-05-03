@@ -1,0 +1,11 @@
+groups:
+  - name: AgentCosts
+    interval: 1m
+    rules:
+      - alert: HighAgentCost
+        expr: sum(increase(agent_euro_total[5m])) by (jobId) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent {{ $labels.jobId }} cost exceeds threshold (€1 in 5m)"

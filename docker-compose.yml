@@ -62,13 +62,11 @@ services:
       - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/postgres
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - AGENT_RUNTIME_GRPC_URL=agent-runtime-runner:50052
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
     depends_on:
       - postgres
       - redis
       - rabbitmq
-      - agent-runtime-runner
     ports:
       - '3000:3000'
     networks:
@@ -79,39 +77,10 @@ services:
       context: ./worker
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - API_URL=http://api:3000
     depends_on:
       - rabbitmq
       - redis
-    networks:
-      - default
-
-  agent-runtime-runner:
-    build:
-      context: ./agent-runtime/python
-      dockerfile: Dockerfile
-    environment:
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - AGENT_SDK_PORT=50052
-    depends_on:
-      - rabbitmq
-      - redis
-    networks:
-      - default
-
-  agent-runtime:
-    build:
-      context: ./agent-runtime
-      dockerfile: Dockerfile
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - MODEL_NAME=${MODEL_NAME}
-      - CREW_RUNTIME_URL=localhost:50051
-    depends_on:
-      - rabbitmq
-      - redis
-    ports:
-      - "8000:8000"
     networks:
       - default
 

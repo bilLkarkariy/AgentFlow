@@ -1,0 +1,4 @@
+openai-agents
+pytest
+python-dotenv
+pytest-asyncio>=0.20.0

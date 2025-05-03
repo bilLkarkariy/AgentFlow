@@ -3,5 +3,3 @@ packages:
   - 'web/*'
   - 'worker'
   - 'infra'
-  - 'agent-runtime'
-  - 'agent-library'

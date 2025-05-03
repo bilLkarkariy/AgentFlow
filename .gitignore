@@ -7,15 +7,25 @@ pnpm-lock.yaml
 /dist
 dist/
 *.log
-.env
+# .env
 .terraform/
 .env
+
+venv/
+.venv/
+worker/venv/
+**/venv/
+**/**/venv/
+__pycache__
+**/__pycache__
+
 
 # IDE
 .idea
 .vscode
 
 docs/*
+!docs/flow-payload.schema.json
 issues/sprint1
 issues/sprint2
 issues/sprint3
@@ -44,8 +54,15 @@ storybook-static/
 
 # Story assets
 /web/studio/src/stories/assets/
-/web/studio/tests/**/
+!/web/studio/tests/**/
 
 # Python compiled artefacts
 crew-runtime/
 openai-agent-runtime/
+
+
+
+api/python/venv
+api/python/.venv
+api/python/__pycache__
+api/python/tests/__pycache__

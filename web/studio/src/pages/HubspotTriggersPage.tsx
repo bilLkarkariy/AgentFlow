@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useHubspotTriggersStore } from '../store/hubspotTriggersStore';
+import { useHubspotTriggers, useAddHubspotTrigger, useDeleteHubspotTrigger } from '../entities/hubspot/api';
 
 const EVENTS = [
   'contact.propertyChange',
@@ -10,12 +10,10 @@ const EVENTS = [
 
 const HubspotTriggersPage: React.FC = () => {
   const { agentId } = useParams();
-  const { triggers, fetchTriggers, addTrigger, deleteTrigger } = useHubspotTriggersStore();
+  const { data: triggers = [] } = useHubspotTriggers(agentId!);
   const [newEvent, setNewEvent] = useState(EVENTS[0]);
-
-  useEffect(() => {
-    if (agentId) fetchTriggers(agentId);
-  }, [agentId, fetchTriggers]);
+  const addTrigger = useAddHubspotTrigger(agentId!);
+  const deleteTrigger = useDeleteHubspotTrigger(agentId!);
 
   if (!agentId) return null;
 
@@ -28,10 +26,7 @@ const HubspotTriggersPage: React.FC = () => {
             <option key={ev} value={ev}>{ev}</option>
           ))}
         </select>
-        <button
-          onClick={() => addTrigger(agentId, newEvent)}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
+        <button onClick={() => addTrigger.mutate(newEvent)} className="bg-blue-600 text-white px-4 py-2 rounded">
           Add Trigger
         </button>
       </div>
@@ -48,7 +43,7 @@ const HubspotTriggersPage: React.FC = () => {
             <tr key={t.id}>
               <td className="px-6 py-4 whitespace-nowrap">{t.eventType}</td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button onClick={() => deleteTrigger(t.id, agentId)} className="text-red-600 hover:text-red-800">Delete</button>
+                <button onClick={() => deleteTrigger.mutate(t.id)} className="text-red-600 hover:text-red-800">Delete</button>
               </td>
             </tr>
           ))}

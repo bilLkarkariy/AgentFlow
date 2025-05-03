@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HealthController } from './health/health.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsModule } from './agents/agents.module';
@@ -22,28 +23,31 @@ import { MetricsModule } from './metrics/metrics.module';
 import { FlowLogsModule } from './flow-logs/flow-logs.module';
 import { DLQModule } from './dlq/dlq.module';
 import { HubspotModule } from './hubspot/hubspot.module';
+import { ToolsModule } from './tools/tools.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SlackAlertInterceptor } from '../common/interceptors/slack-alert.interceptor';
 import { TestErrorController } from '../common/controllers/test-error.controller';
-import { AgentRuntimeModule } from './agent-runtime/agent-runtime.module';
+import { WebhookTriggerModule } from './webhook-trigger/webhook-trigger.module';
 
 // Configuration loaded by ConfigModule
 
 // Fix PG ESM import for TypeORM
-import * as pgPkg from 'pg';
+import pgPkg = require('pg');
 import { PlatformTools } from 'typeorm/platform/PlatformTools';
-const pg = pgPkg.default || pgPkg;
+const pg = pgPkg;
 const originalLoad = PlatformTools.load;
 PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : originalLoad(moduleName);
 
+// scheduling module for cron jobs
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useFactory: () => {
         // Use in-memory SQLite for tests
-        const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
-        if (isTest) {
+        const isTestDb = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+        if (isTestDb) {
           return {
             type: 'sqlite',
             database: ':memory:',
@@ -61,6 +65,7 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
             ssl: false,
             autoLoadEntities: true,
             synchronize: true,
+            dropSchema: true,
           };
         }
         throw new Error('DATABASE URL not configured');
@@ -91,7 +96,8 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     FlowLogsModule,
     DLQModule,
     HubspotModule,
-    AgentRuntimeModule,
+    ToolsModule,
+    WebhookTriggerModule,
   ],
   controllers: [HealthController, TestErrorController],
   providers: [

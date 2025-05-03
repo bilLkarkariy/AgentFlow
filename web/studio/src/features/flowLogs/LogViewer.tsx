@@ -1,34 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Socket } from 'socket.io-client';
-import { connectToRun, FlowLogEvent } from './socket';
+import React, { useEffect, useRef } from 'react';
 import LogLine from './LogLine';
+import { useRunLogs } from '../../entities/run/hooks';
 
 interface Props {
   runId: string;
+  searchTerm?: string;
+  levelFilter?: 'all' | 'info' | 'success' | 'error';
 }
 
-const LogViewer: React.FC<Props> = ({ runId }) => {
-  const [logs, setLogs] = useState<FlowLogEvent[]>([]);
-  const socketRef = useRef<Socket | null>(null);
+const LogViewer: React.FC<Props> = ({ runId, searchTerm = '', levelFilter = 'all' }) => {
+  const logs = useRunLogs(runId);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const socket = connectToRun(runId);
-    socketRef.current = socket;
-
-    socket.on('log', (evt: FlowLogEvent) => {
-      if (evt.runId !== runId) return;
-      setLogs((prev) => [...prev, evt]);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [runId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
+
+  // Apply filters
+  const filteredLogs = logs.filter(l =>
+    (levelFilter === 'all' || l.status === levelFilter) &&
+    l.message.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="bg-black text-sm p-4 h-96 overflow-y-auto rounded">
@@ -36,9 +28,10 @@ const LogViewer: React.FC<Props> = ({ runId }) => {
         <p className="text-neutral-400">En attente de logs...</p>
       ) : (
         <ul className="font-mono space-y-1">
-          {logs.map((l, i) => (
+          {filteredLogs.map((l, i) => (
             <LogLine key={i} log={l} />
           ))}
+          {filteredLogs.length === 0 && <p className="text-neutral-500">Aucun log correspondant.</p>}
         </ul>
       )}
       <div ref={bottomRef} />

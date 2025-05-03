@@ -1,7 +1,6 @@
-import create from 'zustand';
-import axios from 'axios';
+import { useEffect } from 'react';
 
-interface HubspotCredential {
+export interface HubspotCredentials {
   id: string;
   accessToken: string;
   refreshToken: string;
@@ -10,20 +9,22 @@ interface HubspotCredential {
   agent: { id: string };
 }
 
-type HubspotState = {
-  credentials?: HubspotCredential;
-  fetchCredentials: (agentId: string) => Promise<void>;
-  removeCredentials: (agentId: string) => Promise<void>;
-};
+export interface HubspotStore {
+  credentials?: HubspotCredentials;
+  fetchCredentials: (agentId: string) => void;
+  removeCredentials: (agentId: string) => void;
+}
 
-export const useHubspotStore = create<HubspotState>((set) => ({
-  credentials: undefined,
-  fetchCredentials: async (agentId) => {
-    const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/hubspot/credentials/${agentId}`);
-    set({ credentials: res.data });
-  },
-  removeCredentials: async (agentId) => {
-    await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/api/hubspot/credentials/${agentId}`);
-    set({ credentials: undefined });
-  },
-}));
+export function useHubspotStore(agentId?: string): HubspotStore {
+  useEffect(() => {
+    if (agentId) {
+      // Placeholder: fetch credentials for the agent
+    }
+  }, [agentId]);
+
+  return {
+    credentials: undefined,
+    fetchCredentials: () => {},
+    removeCredentials: () => {},
+  };
+}

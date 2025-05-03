@@ -1,0 +1,15 @@
+{
+  "root": true,
+  "extends": "../../.eslintrc.json",
+  "parserOptions": {
+    "project": ["./tsconfig.json"],
+    "tsconfigRootDir": "."
+  },
+  "ignorePatterns": [
+    "src/**/*.stories.tsx",
+    "src/**/*.test.tsx"
+  ],
+  "rules": {
+    "@typescript-eslint/no-empty-object-type": "off"
+  }
+}

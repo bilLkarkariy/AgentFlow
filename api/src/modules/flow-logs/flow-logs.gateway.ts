@@ -5,6 +5,7 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
+import { OnEvent } from '@nestjs/event-emitter';
 import { Server, Socket } from 'socket.io';
 
 interface FlowLogEvent {
@@ -37,5 +38,11 @@ export class FlowLogsGateway {
   emitLog(event: FlowLogEvent) {
     console.log(`[FlowLogsGateway] emitLog to runId=${event.runId} message=${event.message}`);
     this.server.to(event.runId).emit('log', event);
+  }
+
+  // Forward tokens on WebSocket when format=ws is used
+  @OnEvent('tokens')
+  handleToken({ runId, token }: { runId: string; token: string }) {
+    this.server.to(runId).emit('tokens', token);
   }
 }

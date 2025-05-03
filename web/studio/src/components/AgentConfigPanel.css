@@ -1,0 +1,43 @@
+.agent-config-panel {
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background-color: #f9fafb;
+}
+
+.agent-config-panel h3,
+.agent-config-panel h4 {
+  margin-bottom: 0.5rem;
+}
+
+.mapping-section {
+  margin-top: 1rem;
+}
+
+.mapping-section select {
+  margin: 0 0.5rem;
+  padding: 0.25rem;
+}
+
+.mapping-section button {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.mapping-section ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.mapping-section li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+}
+
+.mapping-section li button {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}

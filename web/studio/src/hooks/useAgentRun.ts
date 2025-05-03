@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
-import axios from 'axios';
+import { runAgentFlowFn } from '../entities/agent/api';
 
 interface AgentRunParams {
+  agentId: string;
   prompt: string;
   model?: string;
   temperature?: number;
@@ -13,17 +14,12 @@ interface AgentRunResult {
 }
 
 export function useAgentRun() {
-  // use Vite environment variable under import.meta.env
-  const base = import.meta.env.VITE_AGENT_RUNTIME_URL || 'http://localhost:8000';
-  return useCallback(async ({ prompt, model, temperature }: AgentRunParams): Promise<AgentRunResult> => {
+  return useCallback(async ({ agentId, prompt, model, temperature }: AgentRunParams): Promise<AgentRunResult> => {
     try {
-      const response = await axios.post(
-        `${base}/run`,
-        { prompt, parameters: { model, temperature } },
-      );
-      return { data: response.data, error: undefined };
+      const response = await runAgentFlowFn(agentId);
+      return { data: response, error: undefined };
     } catch (err: any) {
       return { data: undefined, error: err };
     }
-  }, [base]);
+  }, []);
 }

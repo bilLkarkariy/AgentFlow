@@ -1,9 +1,9 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useRef } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { useAgentRun } from '../../hooks/useAgentRun';
 import { connectToRun, FlowLogEvent } from '../../features/flowLogs/socket';
 
-export function AgentBlockNode({ id, data }: NodeProps) {
+export function AgentBlockNode({ id, data }: NodeProps<{ prompt: string; model?: string; temperature?: number }>) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +20,7 @@ export function AgentBlockNode({ id, data }: NodeProps) {
     setLoading(true);
     setLogs([]);
     const { data: res, error: err } = await runAgent({
+      agentId: id,
       prompt: data.prompt,
       model: data.model,
       temperature: data.temperature,

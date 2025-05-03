@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { API_BASE_URL } from '../../shared/lib/env';
 
 export interface FlowLogEvent {
   runId: string;
@@ -10,7 +11,7 @@ export interface FlowLogEvent {
 
 export const connectToRun = (
   runId: string,
-  base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  base = API_BASE_URL,
 ): Socket => {
   const socket = io(`${base}/ws/flow`, { transports: ['websocket'] });
   socket.on('connect', () => {

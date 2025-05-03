@@ -10,6 +10,7 @@ import {
 import { Agent } from '../agent.entity';
 import { AgentFlowNode } from './agent-flow-node.entity';
 import { AgentFlowEdge } from './agent-flow-edge.entity';
+import { FlowRun } from './flow-run.entity';
 
 @Entity()
 export class AgentFlow {
@@ -30,6 +31,12 @@ export class AgentFlow {
 
   @OneToMany(() => AgentFlowEdge, (e) => e.flow, { cascade: true })
   edges: AgentFlowEdge[];
+
+  @OneToMany(() => FlowRun, (run) => run.flow, { cascade: true })
+  runs: FlowRun[];
+
+  @Column({ type: 'simple-json', default: '[]' })
+  mappings: { output: string; input: string }[];
 
   @CreateDateColumn()
   createdAt: Date;

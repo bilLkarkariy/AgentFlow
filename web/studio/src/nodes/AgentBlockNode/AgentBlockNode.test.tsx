@@ -58,7 +58,7 @@ describe('AgentBlockNode', () => {
     renderWithProvider(<AgentBlockNode {...defaultProps} data={data} />);
     const btn = screen.getByRole('button', { name: /simulate/i });
     fireEvent.click(btn);
-    await waitFor(() => expect(mockRun).toHaveBeenCalledWith({ prompt: 'hello', model: undefined, temperature: undefined }));
+    await waitFor(() => expect(mockRun).toHaveBeenCalledWith({agentId: "1", prompt: 'hello', model: undefined, temperature: undefined }));
     await waitFor(() => screen.getByText(/OK/));
     expect(screen.getByText(/OK/)).toBeInTheDocument();
   });
@@ -88,7 +88,7 @@ describe('AgentBlockNode', () => {
     const btn = screen.getByRole('button', { name: /simulate/i });
     fireEvent.click(btn);
 
-    await waitFor(() => expect(mockRun).toHaveBeenCalledWith({ prompt: 'hi', model: undefined, temperature: undefined }));
+    await waitFor(() => expect(mockRun).toHaveBeenCalledWith({ agentId: "1", prompt: 'hi', model: undefined, temperature: undefined }));
     await waitFor(() => screen.getByText(/Streaming log/));
     expect(screen.getByText(/Streaming log/)).toBeInTheDocument();
   });

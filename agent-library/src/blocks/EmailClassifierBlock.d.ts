@@ -1,8 +1,0 @@
-import { AgentBlock } from './AgentBlock';
-import { S3Service } from '../client/S3Service';
-export declare class EmailClassifierBlock implements AgentBlock<string, string> {
-    private s3;
-    static asTool(): import("./toOpenAITool").OpenAIToolDefinition;
-    constructor(s3: S3Service);
-    run(input: string): Promise<string>;
-}

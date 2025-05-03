@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 
 const typeToColor: Record<string, string> = {
@@ -9,7 +9,7 @@ const typeToColor: Record<string, string> = {
   start: 'bg-gray-800',
 };
 
-function NodeBox({ id, data, type }: NodeProps) {
+function NodeBox({ data, type }: NodeProps) {
   const color = typeToColor[type ?? ''] ?? 'bg-gray-500';
 
   if (type === 'condition') {

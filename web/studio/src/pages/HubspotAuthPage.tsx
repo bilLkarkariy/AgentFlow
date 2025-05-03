@@ -5,7 +5,7 @@ import { useHubspotStore } from '../store/hubspotStore';
 
 const HubspotAuthPage: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
-  const { credentials, fetchCredentials, removeCredentials } = useHubspotStore();
+  const { credentials, fetchCredentials, removeCredentials } = useHubspotStore(agentId);
 
   useEffect(() => {
     if (agentId) fetchCredentials(agentId);
@@ -13,15 +13,13 @@ const HubspotAuthPage: React.FC = () => {
 
   const handleConnect = async () => {
     if (!agentId) return;
-    const res = await axios.get(
-      `${import.meta.env.VITE_API_BASE_URL}/api/hubspot/authorize/${agentId}`
-    );
-    window.location.href = res.data.url;
+    const resp = await axios.get(`/api/hubspot/authorize/${agentId}`);
+    window.location.href = resp.data.url;
   };
 
   const handleDisconnect = async () => {
     if (!agentId) return;
-    await removeCredentials(agentId);
+    removeCredentials(agentId);
   };
 
   return (

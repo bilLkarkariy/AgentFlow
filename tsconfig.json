@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "api" },
+    { "path": "web/dashboard" },
+    { "path": "web/studio" }
+  ]
+}

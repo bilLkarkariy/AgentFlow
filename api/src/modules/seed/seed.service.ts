@@ -13,6 +13,11 @@ export class SeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    const isTestDb = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+    if (isTestDb) {
+      this.logger.log('Test environment detected, skipping TaskRun seeding');
+      return;
+    }
     const count = await this.taskRunRepo.count();
     if (count === 0) {
       const now = new Date();

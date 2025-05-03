@@ -21,6 +21,9 @@ export class AgentFlowNode {
   @Column()
   type: string;
 
+  @Column({ type: 'simple-enum', enum: ['agent', 'integration'], default: 'agent' })
+  category: string;
+
   @Column({ type: 'simple-json', nullable: true })
   config: Record<string, any>;
 

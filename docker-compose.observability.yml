@@ -21,18 +21,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=secret
     ports:
       - "3001:3000"
+    volumes:
+      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./infra/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting
+      - ./infra/grafana/provisioning/notifiers:/etc/grafana/provisioning/notifiers
     depends_on:
       - prometheus
-
-  agent-runtime:
-    build:
-      context: ./agent-runtime
-      dockerfile: Dockerfile
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}  # required by AgentService
-      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
-      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
-    ports:
-      - "8000:8000"
-    depends_on:
-      - otel-collector
