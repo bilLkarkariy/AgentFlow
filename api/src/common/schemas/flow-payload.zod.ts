@@ -10,17 +10,18 @@ export const FlowPayloadSchema = z.object({
       name: z.string().optional(),
       instructions: z.string(),
       model: z.string().optional(),
-      tools: z
-        .array(
+      tools: z.array(
+        z.union([
+          z.string(),
           z.object({
             name: z.string(),
             description: z.string(),
             parameters: z.any(),
             toolType: z.enum(["backend", "function"]),
             toolId: z.string(),
-          })
-        )
-        .optional(),
+          }),
+        ])
+      ).optional(),
     })
   ),
   edges: z.array(z.tuple([z.string(), z.string()])),

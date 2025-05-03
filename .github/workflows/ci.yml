@@ -25,12 +25,12 @@ jobs:
 
       # Start docker-compose stack for integration tests
       - name: Start services
-        run: docker-compose -f docker-compose.yml up -d postgres redis rabbitmq
+        run: docker compose -f docker-compose.yml up -d postgres redis rabbitmq
 
       - name: Wait for services
         run: |
-          until docker-compose exec -T postgres pg_isready -U postgres; do sleep 2; done
-          until docker-compose exec -T redis redis-cli ping; do sleep 2; done
+          until docker compose exec -T postgres pg_isready -U postgres; do sleep 2; done
+          until docker compose exec -T redis redis-cli ping; do sleep 2; done
 
       - name: Lint
         run: pnpm lint
