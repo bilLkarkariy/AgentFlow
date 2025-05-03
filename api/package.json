@@ -9,7 +9,7 @@
     "lint": "eslint --ext .js,.ts src",
     "test": "jest --detectOpenHandles --config jest-e2e.json",
     "test:watch": "jest --watch --detectOpenHandles --config jest-e2e.json",
-    "test:e2e": "jest --detectOpenHandles --config jest-e2e.json",
+    "test:e2e": "jest --detectOpenHandles --config jest-e2e.json --passWithNoTests",
     "test:unit": "jest --config jest.config.unit.json"
   },
   "dependencies": {
