@@ -74,3 +74,5 @@ api/python/tests/__pycache__
 
 # Build cache artifacts
 *.tsbuildinfo
+
+infra/envs/local/agentflow-local-config
