@@ -66,3 +66,11 @@ api/python/venv
 api/python/.venv
 api/python/__pycache__
 api/python/tests/__pycache__
+# Security-sensitive infra artifacts
+*.tfstate
+*.tfstate.*
+*.pem
+*.key
+
+# Build cache artifacts
+*.tsbuildinfo
