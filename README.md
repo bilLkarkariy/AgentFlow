@@ -12,10 +12,9 @@ AgentFlow is a fullstack monorepo for building, running, and observing agentic w
 ## Monorepo structure
 
 - `api/`: NestJS API (REST/WebSocket, integrations, orchestration)
-- `agent-runtime/`: execution runtime service (REST + gRPC)
 - `web/studio/`: flow editor and operator UI
 - `web/dashboard/`: metrics and analytics dashboard
-- `worker/`: async background processing
+- `worker/`: Python async/background task worker
 - `infra/`: local/dev infrastructure definitions
 
 ## Tech stack
@@ -37,8 +36,9 @@ AgentFlow is a fullstack monorepo for building, running, and observing agentic w
 ```bash
 pnpm install
 pnpm --filter api run start:dev
-pnpm --filter agent-runtime run start:dev
 pnpm --filter web/studio run dev
+pnpm --filter web/dashboard run dev
+python3 worker/agentflow_worker.py
 ```
 
 ## Testing
