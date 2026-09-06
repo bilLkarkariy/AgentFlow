@@ -1,0 +1,18 @@
+apiVersion: v2
+name: agentflow-service
+description: Golden-path chart for every AgentFlow workload (api, worker, studio, dashboard)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"
+keywords:
+  - agentflow
+  - argo-rollouts
+  - istio
+home: https://github.com/bilLkarkariy/AgentFlow
+sources:
+  - https://github.com/bilLkarkariy/AgentFlow
+maintainers:
+  - name: AgentFlow platform
+annotations:
+  category: Application

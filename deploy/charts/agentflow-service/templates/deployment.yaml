@@ -1,0 +1,21 @@
+{{- include "agentflow-service.validate" . -}}
+{{- if not .Values.rollout.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentflow-service.fullname" . }}
+  labels:
+    {{- include "agentflow-service.labels" . | nindent 4 }}
+    app: {{ include "agentflow-service.appLabel" . }}
+    version: {{ include "agentflow-service.version" . | quote }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "agentflow-service.selectorLabels" . | nindent 6 }}
+  template:
+    {{- include "agentflow-service.podTemplate" . | nindent 4 }}
+{{- end }}

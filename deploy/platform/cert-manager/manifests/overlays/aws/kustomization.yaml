@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  # ------------------------------------------------------------------
+  # TODO (WP13 aws-lifecycle): the AWS domain is <eip-with-dashes>.sslip.io
+  # and is only known after `terraform apply`. `scripts/aws-up.sh` writes
+  # the resolved value into this patch (yq) before ArgoCD syncs, or passes
+  # it as a Helm parameter once cert-manager-config becomes a chart.
+  #
+  # - target:
+  #     group: cert-manager.io
+  #     version: v1
+  #     kind: Certificate
+  #     name: agentflow-wildcard-tls
+  #   patch: |
+  #     - op: replace
+  #       path: /spec/dnsNames
+  #       value:
+  #         - "*.PLACEHOLDER_DOMAIN"
+  #         - "PLACEHOLDER_DOMAIN"
+  #
+  # ------------------------------------------------------------------
+  # TODO (WP9 security): on AWS the root CA is NOT self-signed in-cluster.
+  # It is generated once by scripts/aws-bootstrap.sh, stored in Secrets
+  # Manager under `agentflow/demo/ca`, and pulled in by an ExternalSecret
+  # into cert-manager/agentflow-root-ca. When that lands, drop
+  # `selfsigned-bootstrap` and the `agentflow-root-ca` Certificate from this
+  # overlay (patch with `$patch: delete`) and keep only the ClusterIssuer,
+  # so that `make aws-trust-ca` can trust one stable CA across sessions.
+  # ------------------------------------------------------------------
+  - target:
+      group: cert-manager.io
+      version: v1
+      kind: Certificate
+      name: agentflow-wildcard-tls
+    patch: |
+      - op: replace
+        path: /spec/dnsNames
+        value:
+          - "*.agentflow.demo"
+          - "agentflow.demo"

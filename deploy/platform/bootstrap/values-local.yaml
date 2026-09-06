@@ -1,0 +1,19 @@
+########################################################################
+# Platform catalogue - kind / local overrides.
+#
+# `components` is an ordered list, and Helm replaces lists instead of
+# merging them. Per-component tweaks therefore go through
+# `componentOverrides`, a map keyed by component name that the template
+# merges over the catalogue entry.
+########################################################################
+
+global:
+  env: local
+  domain: agentflow.test
+  profile: full
+
+componentOverrides:
+  # kind uses the init-container dataplane; the CNI plugin would only add
+  # a DaemonSet and a node taint to babysit.
+  istio-cni:
+    enabled: false

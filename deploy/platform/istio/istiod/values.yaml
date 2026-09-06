@@ -1,0 +1,87 @@
+########################################################################
+# istiod - the mesh control plane (wave 4).
+# Chart: istio/istiod. In Istio >= 1.24 the pilot settings live at the root
+# of this chart's values (there is no `pilot:` key any more).
+########################################################################
+
+# One replica, no HPA: a demo cluster does not need control-plane elasticity
+# and an HPA would fight ArgoCD over spec.replicas.
+autoscaleEnabled: false
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+# The chart already stamps prometheus.io/scrape=true and
+# prometheus.io/port=15014 on the istiod pod; only the path is missing for
+# the annotated-pods ScrapeConfig (WP8).
+podAnnotations:
+  prometheus.io/path: /metrics
+
+# A single-replica control plane cannot satisfy a PDB during node drain.
+global:
+  istioNamespace: istio-system
+
+  defaultPodDisruptionBudget:
+    enabled: false
+
+  proxy:
+    # Sidecar footprint: ~30 pods in the mesh, so keep the request tiny.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    logLevel: warning
+    componentLogLevel: "misc:error"
+
+  # Envoy scrapes the application's /metrics and merges it with its own, so
+  # a single Prometheus target per pod covers both.
+  proxy_init:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+
+########################################################################
+# Mesh-wide configuration.
+########################################################################
+meshConfig:
+  # Merge the application metrics into the sidecar's :15020/stats/prometheus
+  # endpoint, so the annotated-pods ScrapeConfig (WP8) needs one target.
+  enablePrometheusMerge: true
+
+  # Do not start the application container before Envoy is ready: without it
+  # the migration Job and the api container race the sidecar at startup.
+  defaultConfig:
+    holdApplicationUntilProxyStarts: true
+    proxyMetadata:
+      ISTIO_META_DNS_CAPTURE: "true"
+    tracing:
+      # Sampling is set per-environment by the Telemetry resource
+      # (deploy/platform/istio/config), not here.
+      sampling: 100.0
+
+  # Structured access logs, so Loki/Alloy can parse them as JSON and the
+  # dashboards can filter on response_code / canonical revision.
+  accessLogFile: /dev/stdout
+  accessLogEncoding: JSON
+  accessLogFormat: |
+    {"start_time":"%START_TIME%","method":"%REQ(:METHOD)%","path":"%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%","protocol":"%PROTOCOL%","response_code":"%RESPONSE_CODE%","response_flags":"%RESPONSE_FLAGS%","bytes_received":"%BYTES_RECEIVED%","bytes_sent":"%BYTES_SENT%","duration":"%DURATION%","upstream_service_time":"%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%","x_forwarded_for":"%REQ(X-FORWARDED-FOR)%","user_agent":"%REQ(USER-AGENT)%","request_id":"%REQ(X-REQUEST-ID)%","trace_id":"%REQ(TRACEPARENT)%","authority":"%REQ(:AUTHORITY)%","upstream_host":"%UPSTREAM_HOST%","upstream_cluster":"%UPSTREAM_CLUSTER%","downstream_remote_address":"%DOWNSTREAM_REMOTE_ADDRESS%","route_name":"%ROUTE_NAME%"}
+
+  # Providers referenced by the Telemetry resource (wave 6).
+  extensionProviders:
+    - name: otel-tracing
+      opentelemetry:
+        service: otel-collector.observability.svc.cluster.local
+        port: 4317
+    - name: envoy
+      envoyFileAccessLog:
+        path: /dev/stdout

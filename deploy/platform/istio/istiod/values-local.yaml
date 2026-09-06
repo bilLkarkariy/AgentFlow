@@ -1,0 +1,25 @@
+########################################################################
+# istiod - kind overrides.
+########################################################################
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    memory: 768Mi
+
+global:
+  proxy:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 48Mi
+      limits:
+        memory: 192Mi
+
+meshConfig:
+  defaultConfig:
+    tracing:
+      # Everything is sampled locally: a demo needs to find its own trace.
+      sampling: 100.0

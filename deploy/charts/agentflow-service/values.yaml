@@ -1,0 +1,256 @@
+# Default values for agentflow-service.
+# One generic "golden path" chart shared by api, worker, studio and dashboard:
+# every difference between services is expressed here, never in the templates.
+# See README.md for the full table and the four usage profiles.
+
+# -- Base name of the rendered objects. Empty means "use the release name",
+# so release `agentflow-api` renders Deployment/Rollout/Service `agentflow-api`.
+nameOverride: ""
+
+# -- Istio/Prometheus short workload label (`app`): api | worker | studio | dashboard.
+# Empty falls back to the chart name helper (release name). It is also the label
+# used by the DestinationRule subsets.
+appLabel: ""
+
+image:
+  # -- Image repository. Always overridden per service by deploy/envs/base/<svc>.yaml.
+  repository: ghcr.io/billkarkariy/agentflow-api
+  # -- Image tag (`sha-<7>`, `main`, `latest`). Empty falls back to .Chart.AppVersion.
+  tag: ""
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+
+# -- Optional imagePullSecrets, e.g. [{ name: ghcr-creds }] for a private registry.
+imagePullSecrets: []
+
+# -- Value of the pod label `version` (Istio canonical revision, used by the
+# canary analysis). Empty falls back to image.tag, then to .Chart.AppVersion.
+version: ""
+
+# -- Replica count. Not rendered when hpa.enabled is true (the HPA owns the field).
+replicaCount: 1
+
+# -- Container entrypoint override.
+command: []
+# -- Container args override.
+args: []
+
+# -- Port exposed by the container, named `http` (api 3000, worker 9100, SPA 8080).
+containerPort: 3000
+
+service:
+  # -- Render a ClusterIP Service. Set to false for the worker (no inbound traffic).
+  enabled: true
+  # -- Service type. ClusterIP only; ingress goes through the Istio gateway.
+  type: ClusterIP
+  # -- Service port (the port name is always `http`, targetPort is the container port name).
+  port: 80
+  # -- Istio protocol selection, e.g. http | http2 | grpc | tcp.
+  appProtocol: http
+  # -- Extra annotations on the Service.
+  annotations: {}
+
+rollout:
+  # -- Render an Argo Rollout instead of a Deployment (api, studio, dashboard).
+  enabled: false
+  canary:
+    # -- Canary steps, passed through verbatim to spec.strategy.canary.steps.
+    steps:
+      - setWeight: 10
+      - pause: { duration: 60s }
+      - setWeight: 50
+      - pause: { duration: 60s }
+    # -- Max surge during a canary step.
+    maxSurge: "25%"
+    # -- Max unavailable during a canary step.
+    maxUnavailable: 0
+    # -- Grace period before the old ReplicaSet is scaled down after promotion.
+    abortScaleDownDelaySeconds: 30
+    trafficRouting:
+      istio:
+        # -- Shift traffic with Istio subsets (stable/canary) on a single Service.
+        # Requires istio.virtualService.enabled; forces the DestinationRule on.
+        enabled: false
+    analysis:
+      # -- Run an AnalysisRun during the canary (api only in this repo).
+      enabled: false
+      # -- Templates, e.g. [{ templateName: istio-success-rate, clusterScope: true }].
+      templates: []
+      # -- Step index (1-based) at which the analysis starts.
+      startingStep: 1
+
+# -- Plain (non secret) environment. Rendered as a ConfigMap consumed with envFrom;
+# its sha256 becomes the pod annotation `checksum/config` so a change rolls the pods.
+config: {}
+
+secrets:
+  # -- Name of an existing Secret consumed with envFrom (e.g. agentflow-api-secrets).
+  existingSecret: ""
+  # -- Create a Secret from `secrets.data`. Local/dev only: never commit real values,
+  # production secrets come from External Secrets Operator.
+  create: false
+  # -- Key/value pairs rendered as stringData when `create` is true.
+  data: {}
+
+database:
+  # -- Secret holding the Postgres URL (local: agentflow-db-app, aws: agentflow-db).
+  existingSecret: ""
+  # -- Key inside that Secret (local: uri, aws: POSTGRES_URL). Both fields are
+  # required; together they render the env var POSTGRES_URL.
+  secretKey: ""
+
+# -- Extra environment variables, verbatim EnvVar entries.
+extraEnv: []
+# -- Extra envFrom sources, verbatim EnvFromSource entries.
+extraEnvFrom: []
+
+# Probes. Each probe accepts either `httpGet` or `exec` (mutually exclusive) plus
+# any of the standard timing fields. `enabled: false` omits the probe entirely.
+probes:
+  startup:
+    enabled: true
+    httpGet: { path: /health, port: http }
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet: { path: /health, port: http }
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet: { path: /health/ready, port: http }
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+# -- Container resources. Requests always set, CPU limit deliberately absent.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+hpa:
+  # -- Horizontal Pod Autoscaler (autoscaling/v2). Targets the Rollout or the Deployment.
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  # -- Optional memory target; omitted when null.
+  targetMemoryUtilizationPercentage: null
+  # -- Optional scaling behavior block, passed through verbatim.
+  behavior: {}
+
+pdb:
+  # -- PodDisruptionBudget. Rendered only when the workload can actually lose a pod,
+  # i.e. replicaCount >= 2 or (hpa.enabled and hpa.minReplicas >= 2).
+  enabled: true
+  minAvailable: 1
+  # -- Alternative to minAvailable; set one or the other, not both.
+  maxUnavailable: null
+
+serviceAccount:
+  # -- Create a dedicated ServiceAccount.
+  create: true
+  # -- Name to use; empty means the fullname (or `default` when create is false).
+  name: ""
+  # -- Annotations, e.g. eks.amazonaws.com/role-arn for IRSA.
+  annotations: {}
+  # -- Mount the API token in the pods.
+  automountServiceAccountToken: false
+
+# -- Pod annotations (prometheus.io/scrape|port|path, proxy.istio.io/config, ...).
+podAnnotations: {}
+# -- Extra pod labels, merged on top of the chart labels.
+podLabels: {}
+
+# -- Pod-level security context.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context. readOnlyRootFilesystem is on by default,
+# so any writable path needs an emptyDir (see volumes/volumeMounts below).
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# -- Pod volumes, e.g. [{ name: tmp, emptyDir: {} }].
+volumes: []
+# -- Container volume mounts, e.g. [{ name: tmp, mountPath: /tmp }].
+volumeMounts: []
+
+serviceMonitor:
+  # -- Prometheus Operator ServiceMonitor. Kept false in mesh mode: scraping goes
+  # through the pod-annotation ScrapeConfig. Requires service.enabled.
+  enabled: false
+  path: /metrics
+  port: http
+  interval: 30s
+  # -- Optional scrape timeout, omitted when empty.
+  scrapeTimeout: ""
+  # -- Extra labels so the Prometheus instance selects this ServiceMonitor.
+  labels: {}
+
+istio:
+  virtualService:
+    # -- Render a VirtualService with the named routes `streaming` (optional) and `primary`.
+    enabled: false
+    gateways:
+      - istio-ingress/agentflow-gateway
+    # -- External hosts, e.g. [api.agentflow.test].
+    hosts: []
+    # -- URI matches sent to the `streaming` route (timeout 0s, no retries).
+    # Each entry is an Istio StringMatch: { prefix: /ws/flow } or { regex: "..." }.
+    streamingPaths: []
+    # -- Timeout of the `primary` route.
+    timeout: 30s
+    # -- Retry policy of the `primary` route.
+    retries:
+      attempts: 2
+      retryOn: "connect-failure,refused-stream,reset"
+  destinationRule:
+    # -- Render the DestinationRule. Implied by rollout.canary.trafficRouting.istio.enabled.
+    enabled: false
+    # -- Optional trafficPolicy block, passed through verbatim.
+    trafficPolicy: {}
+
+migrations:
+  # -- Pre-install/pre-upgrade Job (ArgoCD PreSync hook). api only.
+  enabled: false
+  command: ["node", "node_modules/typeorm/cli.js", "migration:run", "-d", "dist/src/data-source.js"]
+  args: []
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 600
+  # -- The Job must not get an Istio sidecar, otherwise it never completes.
+  podAnnotations:
+    sidecar.istio.io/inject: "false"
+  # -- Job resources; empty means "reuse .Values.resources".
+  resources: {}
+
+runtimeConfig:
+  # -- SPA runtime configuration (studio, dashboard). Each key K of `values`
+  # becomes the container env var APP_<K> directly, no ConfigMap involved; the
+  # nginx entrypoint turns them into /config.js (window.__APP_CONFIG__).
+  enabled: false
+  # -- UPPER_SNAKE keys, e.g. API_BASE_URL -> APP_API_BASE_URL.
+  values: {}
+
+# -- Grace period given to the pod to drain before SIGKILL.
+terminationGracePeriodSeconds: 30
+# -- Number of old ReplicaSets kept by the Deployment/Rollout.
+revisionHistoryLimit: 5
+
+# -- Node selection and spreading, passed through verbatim.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

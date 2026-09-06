@@ -1,0 +1,25 @@
+########################################################################
+# Wildcard server certificate for the ingress gateway.
+# dnsNames are a placeholder here and replaced by every overlay, because
+# the domain differs per environment (agentflow.test / <eip>.sslip.io).
+########################################################################
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: agentflow-wildcard-tls
+  namespace: istio-ingress
+spec:
+  secretName: agentflow-wildcard-tls
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  dnsNames:
+    - placeholder.invalid
+  issuerRef:
+    name: agentflow-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

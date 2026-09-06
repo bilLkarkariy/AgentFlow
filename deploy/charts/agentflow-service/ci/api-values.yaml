@@ -1,0 +1,91 @@
+# Profile "api": Rollout + Istio canary + analysis + migrations + database.
+# Mirrors deploy/envs/base/api.yaml (WP5); only used by helm lint / kubeconform.
+appLabel: api
+image:
+  repository: ghcr.io/billkarkariy/agentflow-api
+  tag: sha-1234567
+replicaCount: 2
+containerPort: 3000
+
+service:
+  enabled: true
+  port: 80
+  appProtocol: http
+
+rollout:
+  enabled: true
+  canary:
+    trafficRouting:
+      istio:
+        enabled: true
+    analysis:
+      enabled: true
+      startingStep: 1
+      templates:
+        - templateName: istio-success-rate
+          clusterScope: true
+
+config:
+  NODE_ENV: production
+  PORT: "3000"
+  LOG_LEVEL: info
+  DEPLOY_ENV: local
+  REDIS_HOST: agentflow-redis
+  REDIS_PORT: "6379"
+  API_URL: http://127.0.0.1:3000
+  POSTGRES_SSL: "false"
+  PYTHON_BIN: /opt/venv/bin/python
+  PYTHON_SCRIPTS_DIR: /app/python
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318
+  OTEL_SERVICE_NAME: api.agentflow
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: "1.0"
+  APP_VERSION: sha-1234567
+
+secrets:
+  existingSecret: agentflow-api-secrets
+
+database:
+  existingSecret: agentflow-db-app
+  secretKey: uri
+
+migrations:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 300m
+    memory: 640Mi
+  limits:
+    memory: 1536Mi
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: /metrics
+  proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+istio:
+  virtualService:
+    enabled: true
+    gateways:
+      - istio-ingress/agentflow-gateway
+    hosts:
+      - api.agentflow.test
+    streamingPaths:
+      - prefix: /ws/flow
+      - prefix: /socket.io
+      - regex: "^/agents/[^/]+/flow/(execute|run)$"
+    timeout: 30s
+    retries:
+      attempts: 2
+      retryOn: "connect-failure,refused-stream,reset"
+  destinationRule:
+    enabled: true

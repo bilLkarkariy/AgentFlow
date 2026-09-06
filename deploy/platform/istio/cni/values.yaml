@@ -1,0 +1,38 @@
+########################################################################
+# istio/cni - AWS profile only (disabled in the local catalogue).
+#
+# Installs the Istio CNI plugin so that workload pods no longer need the
+# privileged `istio-init` container. That is what lets the `agentflow`
+# namespace move from PodSecurity `warn: restricted` towards `enforce`.
+########################################################################
+
+global:
+  istioNamespace: istio-system
+  logAsJson: true
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+# Remove the cni.istio.io/not-ready taint once the DaemonSet is ready on a
+# freshly joined Spot node.
+repair:
+  enabled: true
+
+# EKS with the AWS VPC CNI: chained plugin, standard paths.
+cniBinDir: /opt/cni/bin
+cniConfDir: /etc/cni/net.d
+chained: true
+
+logging:
+  level: warn
+
+excludeNamespaces:
+  - kube-system
+  - istio-system
+  - cert-manager
+  - external-secrets
+  - kyverno

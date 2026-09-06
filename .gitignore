@@ -1,7 +1,6 @@
 # Node
 node_modules/
 node_modules
-pnpm-lock.yaml
 
 # Build
 /dist
@@ -26,6 +25,10 @@ __pycache__
 
 docs/*
 !docs/flow-payload.schema.json
+!docs/ops/
+!docs/ops/**
+!docs/adr/
+!docs/adr/**
 issues/sprint1
 issues/sprint2
 issues/sprint3

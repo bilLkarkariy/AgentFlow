@@ -1,0 +1,281 @@
+########################################################################
+# AgentFlow platform catalogue.
+#
+# The platform-root Application (created by Terraform) renders this chart
+# with `global.*` passed as Helm parameters, so the values below only carry
+# defaults.
+#
+# Chart versions MUST stay in sync with deploy/versions.yaml, which is what
+# Terraform reads. deploy/versions.yaml is the source of truth; a Helm chart
+# cannot read a file outside its own directory, hence the duplication.
+# `make lint-deploy` (WP5) is the place to add a drift check.
+########################################################################
+
+global:
+  # Injected by platform-root: local | aws
+  env: local
+  # Wildcard domain served by istio-ingress/agentflow-gateway.
+  domain: agentflow.test
+  # Git revision every Application tracks.
+  gitRevision: main
+  # minimal = core mesh + control plane only; full = everything.
+  profile: full
+  repoURL: https://github.com/bilLkarkariy/AgentFlow.git
+  argocdNamespace: argocd
+  # Filled by infra/envs/aws-demo (ingress EIPs, IRSA role ARNs, ...).
+  aws: {}
+
+# Wave 20 hand-over to the application layer (WP5 owns deploy/argocd/envs).
+agentflowApps:
+  enabled: true
+  wave: 20
+  path: deploy/argocd/envs
+
+########################################################################
+# Components.
+#
+#   name              Application name (unique in namespace argocd)
+#   wave              argocd.argoproj.io/sync-wave
+#   namespace         spec.destination.namespace
+#   type              chart | kustomize | directory
+#   profiles          rendered only when global.profile is in this list
+#   enabled           false skips the component entirely
+#   chart type        repoURL + chart + version + releaseName + valuesDir
+#                     -> valueFiles $values/<valuesDir>/values{,-<env>}.yaml
+#   kustomize type    path -> <path>/<env>
+#   directory type    path (recursed as-is)
+#   extraSyncOptions  appended to the four shared syncOptions
+#   ignoreDifferences passed through verbatim
+########################################################################
+components:
+  # --- wave 0: namespaces -------------------------------------------------
+  - name: namespaces
+    wave: 0
+    namespace: default
+    type: directory
+    path: deploy/platform/namespaces/manifests
+
+  # --- wave 1: certificates and metrics -----------------------------------
+  - name: cert-manager
+    wave: 1
+    namespace: cert-manager
+    type: chart
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    version: v1.21.1
+    releaseName: cert-manager
+    valuesDir: deploy/platform/cert-manager
+    extraSyncOptions:
+      - SkipDryRunOnMissingResource=true
+
+  - name: metrics-server
+    wave: 1
+    namespace: kube-system
+    type: chart
+    repoURL: https://kubernetes-sigs.github.io/metrics-server
+    chart: metrics-server
+    version: 3.14.0
+    releaseName: metrics-server
+    valuesDir: deploy/platform/metrics-server
+
+  # --- wave 2: private CA + wildcard certificate --------------------------
+  - name: cert-manager-config
+    wave: 2
+    namespace: cert-manager
+    type: kustomize
+    path: deploy/platform/cert-manager/manifests/overlays
+
+  # --- waves 3-6: service mesh --------------------------------------------
+  - name: istio-base
+    wave: 3
+    namespace: istio-system
+    type: chart
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: base
+    version: 1.30.4
+    releaseName: istio-base
+    valuesDir: deploy/platform/istio/base
+    extraSyncOptions:
+      - SkipDryRunOnMissingResource=true
+
+  - name: istiod
+    wave: 4
+    namespace: istio-system
+    type: chart
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: istiod
+    version: 1.30.4
+    releaseName: istiod
+    valuesDir: deploy/platform/istio/istiod
+
+  # Only on AWS: kind runs fine with the init-container dataplane.
+  - name: istio-cni
+    wave: 5
+    namespace: istio-system
+    enabled: false
+    type: chart
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: cni
+    version: 1.30.4
+    releaseName: istio-cni
+    valuesDir: deploy/platform/istio/cni
+
+  - name: istio-ingress
+    wave: 5
+    namespace: istio-ingress
+    type: chart
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: gateway
+    version: 1.30.4
+    # Release name drives the Deployment/Service name and the
+    # `istio: ingressgateway` selector used by the Gateway resource.
+    releaseName: istio-ingressgateway
+    valuesDir: deploy/platform/istio/gateway
+
+  - name: istio-config
+    wave: 6
+    namespace: istio-ingress
+    type: kustomize
+    path: deploy/platform/istio/config/overlays
+
+  # --- waves 7-8: progressive delivery ------------------------------------
+  - name: argo-rollouts
+    wave: 7
+    namespace: argo-rollouts
+    type: chart
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    version: 2.43.0
+    releaseName: argo-rollouts
+    valuesDir: deploy/platform/argo-rollouts
+    extraSyncOptions:
+      - SkipDryRunOnMissingResource=true
+
+  - name: argo-rollouts-config
+    wave: 8
+    namespace: argo-rollouts
+    type: directory
+    path: deploy/platform/argo-rollouts/manifests
+
+  # --- waves 9-12: observability (WP8 owns the values files) --------------
+  - name: kube-prometheus-stack
+    wave: 9
+    namespace: observability
+    type: chart
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    version: 89.2.3
+    releaseName: kube-prometheus-stack
+    valuesDir: deploy/platform/kube-prometheus-stack
+    extraSyncOptions:
+      - SkipDryRunOnMissingResource=true
+
+  - name: loki
+    wave: 10
+    namespace: observability
+    profiles: [full]
+    type: chart
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    version: 7.3.0
+    releaseName: loki
+    valuesDir: deploy/platform/loki
+
+  - name: alloy
+    wave: 10
+    namespace: observability
+    profiles: [full]
+    type: chart
+    repoURL: https://grafana.github.io/helm-charts
+    chart: alloy
+    version: 1.12.1
+    releaseName: alloy
+    valuesDir: deploy/platform/alloy
+
+  - name: tempo
+    wave: 10
+    namespace: observability
+    profiles: [full]
+    type: chart
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    version: 1.24.4
+    releaseName: tempo
+    valuesDir: deploy/platform/tempo
+
+  - name: otel-collector
+    wave: 10
+    namespace: observability
+    profiles: [full]
+    type: chart
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    version: 0.172.1
+    # The values file sets fullnameOverride: otel-collector so that the
+    # Service is otel-collector.observability.svc (plan section 5).
+    releaseName: otel-collector
+    valuesDir: deploy/platform/otel-collector
+
+  - name: monitoring-config
+    wave: 11
+    namespace: observability
+    type: kustomize
+    path: deploy/platform/monitoring-config/overlays
+
+  - name: kiali
+    wave: 12
+    namespace: istio-system
+    type: chart
+    repoURL: https://kiali.org/helm-charts
+    chart: kiali-server
+    version: 2.31.0
+    releaseName: kiali
+    valuesDir: deploy/platform/kiali
+
+  # --- waves 13-17: security (WP9 owns the values files) ------------------
+  - name: kyverno
+    wave: 13
+    namespace: kyverno
+    profiles: [full]
+    type: chart
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+    version: 3.9.0
+    releaseName: kyverno
+    valuesDir: deploy/platform/kyverno
+    extraSyncOptions:
+      - SkipDryRunOnMissingResource=true
+
+  - name: kyverno-policies
+    wave: 14
+    namespace: kyverno
+    profiles: [full]
+    type: kustomize
+    path: deploy/platform/kyverno/policies/overlays
+
+  - name: external-secrets
+    wave: 15
+    namespace: external-secrets
+    profiles: [full]
+    type: chart
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+    version: 2.10.0
+    releaseName: external-secrets
+    valuesDir: deploy/platform/external-secrets
+    extraSyncOptions:
+      - SkipDryRunOnMissingResource=true
+
+  - name: external-secrets-config
+    wave: 16
+    namespace: platform-secrets
+    profiles: [full]
+    type: kustomize
+    path: deploy/platform/external-secrets/manifests/overlays
+
+  - name: network-policies
+    wave: 17
+    namespace: agentflow
+    profiles: [full]
+    type: directory
+    path: deploy/platform/network-policies/manifests

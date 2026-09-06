@@ -22,6 +22,7 @@ import { AgentConfigPanel } from '../components/AgentConfigPanel';
 import { io, Socket } from 'socket.io-client';
 import RunsList from '../components/RunsList';
 import LogsTimeline from '../components/LogsTimeline';
+import { API_BASE_URL } from '../shared/lib/env';
 
 export default function DesignerPage() {
   const { agentId } = useParams<{ agentId: string }>();
@@ -83,8 +84,7 @@ export default function DesignerPage() {
   // Setup control socket
   useEffect(() => {
     if (!runId) return;
-    const base = import.meta.env.VITE_API_URL ?? window.location.origin;
-    const sock = io(base, { path: '/ws' });
+    const sock = io(API_BASE_URL, { path: '/ws' });
     setControlSocket(sock);
     return () => { sock.disconnect(); };
   }, [runId]);
@@ -92,8 +92,7 @@ export default function DesignerPage() {
   // Setup log socket
   useEffect(() => {
     if (!runId) return;
-    const base = import.meta.env.VITE_API_URL ?? window.location.origin;
-    const sock = io(`${base}/ws/flow`);
+    const sock = io(`${API_BASE_URL}/ws/flow`);
     sock.on('connect', () => sock.emit('join', { runId }));
     sock.on('tokens', () => setProgress(p => p + 1));
     setLogSocket(sock);

@@ -1,0 +1,9 @@
+########################################################################
+# metrics-server - kind overrides.
+########################################################################
+
+# kind kubelets serve their metrics with a self-signed certificate that is
+# not in the cluster CA bundle. EKS kubelets are fine, so this flag stays
+# out of values-aws.yaml.
+args:
+  - --kubelet-insecure-tls

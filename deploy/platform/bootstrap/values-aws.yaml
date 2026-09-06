@@ -1,0 +1,29 @@
+########################################################################
+# Platform catalogue - EKS overrides.
+#
+# See values-local.yaml for why per-component tweaks go through
+# `componentOverrides` instead of restating the whole `components` list.
+########################################################################
+
+global:
+  env: aws
+  # Overwritten by infra/envs/aws-demo with <eip-with-dashes>.sslip.io.
+  domain: agentflow.demo
+  profile: full
+
+componentOverrides:
+  # On EKS the CNI plugin removes the need for the NET_ADMIN init container
+  # in every workload pod.
+  istio-cni:
+    enabled: true
+
+  istiod:
+    # istiod runs behind an HPA on EKS: the controller, not ArgoCD, owns
+    # spec.replicas.
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        name: istiod
+        namespace: istio-system
+        jsonPointers:
+          - /spec/replicas

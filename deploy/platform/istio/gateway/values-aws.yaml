@@ -1,0 +1,60 @@
+########################################################################
+# istio/gateway - EKS overrides.
+#
+# In-tree NLB (service.beta.kubernetes.io/aws-load-balancer-type: nlb) with
+# two pre-allocated Elastic IPs, so the demo domain
+# <eip-with-dashes>.sslip.io stays stable across `make aws-up` sessions.
+#
+# Helm values cannot be templated, so the EIP allocation ids below are a
+# literal PLACEHOLDER. WP13 (scripts/aws-up.sh) substitutes them from the
+# Terraform output `ingress_eip_allocation_ids` before ArgoCD syncs this
+# component - equivalent to writing
+#   {{ .Values.global.aws.ingressEipAllocations }}
+# which Helm would not evaluate inside a values file.
+########################################################################
+
+service:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # PLACEHOLDER - comma separated eipalloc-... ids, one per tagged public
+    # subnet. A count mismatch leaves the NLB in <pending> forever.
+    service.beta.kubernetes.io/aws-load-balancer-eip-allocations: "PLACEHOLDER_EIP_ALLOCATIONS"
+    # PLACEHOLDER - comma separated subnet ids of the public subnets.
+    service.beta.kubernetes.io/aws-load-balancer-subnets: "PLACEHOLDER_PUBLIC_SUBNETS"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: HTTP
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /healthz/ready
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  minAvailable: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    memory: 768Mi

@@ -1,0 +1,29 @@
+########################################################################
+# Argo Rollouts - kind overrides.
+########################################################################
+
+dashboard:
+  # The visual canary demo: http://rollouts.agentflow.test
+  # Routed by deploy/platform/istio/config/overlays/local/virtualservices.yaml
+  # to argo-rollouts-dashboard.argo-rollouts:3100.
+  enabled: true
+  readonly: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+  service:
+    type: ClusterIP
+    port: 3100
+    targetPort: 3100
+
+controller:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      memory: 256Mi

@@ -1,0 +1,35 @@
+########################################################################
+# istio/gateway - kind overrides.
+#
+# kind has no load balancer. The Service is a NodePort on fixed ports
+# 30080/30443, and infra/modules/kind_cluster maps host 80 -> 30080 and
+# host 443 -> 30443 (extraPortMappings). Result: http://argocd.agentflow.test
+# works straight from the browser, no port-forward.
+#
+# Change these ports together with infra/envs/local http_port/https_port.
+########################################################################
+
+service:
+  type: NodePort
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+      nodePort: 30080
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+      nodePort: 30443
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    memory: 384Mi

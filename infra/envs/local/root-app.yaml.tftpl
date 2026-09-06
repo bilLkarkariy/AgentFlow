@@ -1,0 +1,56 @@
+# Rendered by infra/envs/local/main.tf (templatefile) and merged as the last
+# values file of the argo-cd Helm release. `extraObjects` is the app-of-apps
+# entry point: ArgoCD creates the platform-root Application at install time,
+# which then renders deploy/platform/bootstrap into one Application per
+# platform component.
+extraObjects:
+  - apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: platform-root
+      namespace: ${argocd_namespace}
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+      annotations:
+        argocd.argoproj.io/sync-wave: "-2"
+    spec:
+      project: default
+      source:
+        repoURL: ${repo_url}
+        targetRevision: ${git_revision}
+        path: deploy/platform/bootstrap
+        helm:
+          releaseName: platform
+          ignoreMissingValueFiles: true
+          valueFiles:
+            - values.yaml
+            - values-${env}.yaml
+          parameters:
+            - name: global.env
+              value: ${env}
+            - name: global.domain
+              value: ${domain}
+            - name: global.gitRevision
+              value: ${git_revision}
+            - name: global.profile
+              value: ${profile}
+            - name: global.repoURL
+              value: ${repo_url}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ${argocd_namespace}
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

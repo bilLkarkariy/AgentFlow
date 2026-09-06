@@ -1,0 +1,20 @@
+########################################################################
+# cert-manager - kind overrides.
+########################################################################
+
+# Nothing resolves publicly on *.agentflow.test, and no ACME issuer is used
+# locally: keep the DNS-01 recursive resolvers off the default public list.
+config:
+  apiVersion: controller.config.cert-manager.io/v1alpha1
+  kind: ControllerConfiguration
+  logging:
+    verbosity: 1
+    format: text
+
+cainjector:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 192Mi

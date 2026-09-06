@@ -1,0 +1,13 @@
+import { Module } from '@nestjs/common';
+import { TerminusModule } from '@nestjs/terminus';
+import { HealthController } from './health.controller';
+import { RedisHealthIndicator } from './redis.health';
+import { RabbitMQHealthIndicator } from './rabbitmq.health';
+import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
+
+@Module({
+  imports: [TerminusModule, RabbitMQModule],
+  controllers: [HealthController],
+  providers: [RedisHealthIndicator, RabbitMQHealthIndicator],
+})
+export class HealthModule {}

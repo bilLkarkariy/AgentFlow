@@ -1,0 +1,34 @@
+########################################################################
+# The single ingress point of the mesh (plan section 5).
+# Selects the istio/gateway release deployed in namespace istio-ingress.
+#
+# `hosts: "*"` on purpose: routing is decided by the VirtualServices, so a
+# new service only needs a VirtualService, never a Gateway change.
+########################################################################
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: agentflow-gateway
+  namespace: istio-ingress
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+      # No httpsRedirect: the demo runs on a private CA and plain HTTP is
+      # the fallback when the CA is not trusted by the browser yet.
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*"
+      tls:
+        mode: SIMPLE
+        # Secret produced by cert-manager (wave 2) in namespace istio-ingress.
+        credentialName: agentflow-wildcard-tls

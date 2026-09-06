@@ -1,0 +1,123 @@
+########################################################################
+# Admin UIs, local only.
+#
+# On AWS these are reached through `kubectl port-forward` (`make aws-ui`);
+# only api/studio/dashboard are published on *.<eip>.sslip.io.
+#
+# `timeout: 0s` everywhere on purpose: the Istio default is 15s, which cuts
+# ArgoCD log streaming, Grafana Live and the Rollouts watch API.
+########################################################################
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: argocd
+  namespace: istio-ingress
+spec:
+  hosts:
+    - argocd.agentflow.test
+  gateways:
+    - agentflow-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: argocd-server.argocd.svc.cluster.local
+            port:
+              number: 80
+      timeout: 0s
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: kiali
+  namespace: istio-ingress
+spec:
+  hosts:
+    - kiali.agentflow.test
+  gateways:
+    - agentflow-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: kiali.istio-system.svc.cluster.local
+            port:
+              number: 20001
+      timeout: 0s
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: rollouts
+  namespace: istio-ingress
+spec:
+  hosts:
+    - rollouts.agentflow.test
+  gateways:
+    - agentflow-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: argo-rollouts-dashboard.argo-rollouts.svc.cluster.local
+            port:
+              number: 3100
+      timeout: 0s
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: grafana
+  namespace: istio-ingress
+spec:
+  hosts:
+    - grafana.agentflow.test
+  gateways:
+    - agentflow-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: kube-prometheus-stack-grafana.observability.svc.cluster.local
+            port:
+              number: 80
+      timeout: 0s
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: prometheus
+  namespace: istio-ingress
+spec:
+  hosts:
+    - prometheus.agentflow.test
+  gateways:
+    - agentflow-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: kube-prometheus-stack-prometheus.observability.svc.cluster.local
+            port:
+              number: 9090
+      timeout: 0s
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: alertmanager
+  namespace: istio-ingress
+spec:
+  hosts:
+    - alertmanager.agentflow.test
+  gateways:
+    - agentflow-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: kube-prometheus-stack-alertmanager.observability.svc.cluster.local
+            port:
+              number: 9093
+      timeout: 0s

@@ -1,4 +1,4 @@
+# Runtime dependencies of the Python agent runners (see requirements-dev.txt for tests).
 openai-agents
-pytest
 python-dotenv
-pytest-asyncio>=0.20.0
+requests>=2.31

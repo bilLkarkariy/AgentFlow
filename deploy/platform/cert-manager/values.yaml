@@ -1,0 +1,68 @@
+########################################################################
+# cert-manager - shared values.
+# Chart: jetstack/cert-manager (see deploy/versions.yaml).
+#
+# Issues the private CA (ClusterIssuer agentflow-ca) and the wildcard
+# certificate consumed by istio-ingress/agentflow-gateway.
+# See manifests/ for the Issuer / Certificate objects (wave 2).
+########################################################################
+
+crds:
+  # Let Helm own the CRDs so ArgoCD can diff them like any other resource.
+  enabled: true
+  keep: true
+
+replicaCount: 1
+
+# CA-type ClusterIssuers read their signing Secret from this namespace.
+# `agentflow-root-ca` is created here by manifests/base/root-ca.yaml.
+clusterResourceNamespace: cert-manager
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+podLabels:
+  app.kubernetes.io/part-of: agentflow-platform
+
+prometheus:
+  enabled: true
+  servicemonitor:
+    # WP8 scrapes via the annotated-pods ScrapeConfig.
+    enabled: false
+  podmonitor:
+    enabled: false
+
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+cainjector:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 96Mi
+    limits:
+      memory: 256Mi
+
+startupapicheck:
+  # The check is a Job with a Helm hook; ArgoCD turns it into a PreSync hook
+  # that has to pass before the rest of the wave. Keep it, it catches a
+  # half-installed webhook early.
+  enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi

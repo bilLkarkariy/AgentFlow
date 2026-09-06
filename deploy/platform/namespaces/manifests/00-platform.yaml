@@ -1,0 +1,58 @@
+########################################################################
+# The platform owns every namespace (plan section 5). Application charts
+# never create one, so a `helm uninstall` can never take a namespace with
+# it.
+########################################################################
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: gitops
+  annotations:
+    # ArgoCD lives here: never let a prune delete its own home.
+    argocd.argoproj.io/sync-options: Prune=false
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: security
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: mesh
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-ingress
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: mesh
+    # The ingress gateway pod runs with a sidecar-injected proxy.
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo-rollouts
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: delivery
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: observability

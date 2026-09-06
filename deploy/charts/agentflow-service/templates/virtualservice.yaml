@@ -1,0 +1,45 @@
+{{- if .Values.istio.virtualService.enabled }}
+{{- $vs := .Values.istio.virtualService }}
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ include "agentflow-service.fullname" . }}
+  labels:
+    {{- include "agentflow-service.labels" . | nindent 4 }}
+spec:
+  {{- with $vs.gateways }}
+  gateways:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  hosts:
+    {{- if $vs.hosts }}
+    {{- toYaml $vs.hosts | nindent 4 }}
+    {{- else }}
+    - {{ include "agentflow-service.fullname" . }}
+    {{- end }}
+  http:
+    {{- with $vs.streamingPaths }}
+    # Long-lived streams (SSE, websockets): no timeout, no retry.
+    - name: streaming
+      match:
+        {{- range . }}
+        - uri:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+      route:
+        {{- include "agentflow-service.vsDestinations" $ | trim | nindent 8 }}
+      timeout: "0s"
+      retries:
+        attempts: 0
+    {{- end }}
+    - name: primary
+      route:
+        {{- include "agentflow-service.vsDestinations" $ | trim | nindent 8 }}
+      {{- with $vs.timeout }}
+      timeout: {{ . | quote }}
+      {{- end }}
+      {{- with $vs.retries }}
+      retries:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

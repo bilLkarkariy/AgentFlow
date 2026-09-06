@@ -1,8 +1,9 @@
 import axios from 'axios';
 import type { RoiStat } from '../types';
+import { API_BASE_URL } from '../config';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  baseURL: API_BASE_URL,
 });
 
 export async function getRoiStats(from: string, to: string): Promise<RoiStat[]> {

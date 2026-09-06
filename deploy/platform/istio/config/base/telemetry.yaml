@@ -1,0 +1,27 @@
+########################################################################
+# Mesh-wide telemetry.
+#
+# Providers `otel-tracing` and `envoy` are declared in
+# deploy/platform/istio/istiod/values.yaml (meshConfig.extensionProviders).
+# Sampling is patched per overlay: 100 % local, 10 % on AWS.
+########################################################################
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: istio-system
+spec:
+  tracing:
+    - providers:
+        - name: otel-tracing
+      randomSamplingPercentage: 100.0
+      customTags:
+        # Lets a Tempo trace be filtered down to the canary revision during
+        # a rollout.
+        canonical_revision:
+          environment:
+            name: ISTIO_META_WORKLOAD_NAME
+            defaultValue: unknown
+  accessLogging:
+    - providers:
+        - name: envoy

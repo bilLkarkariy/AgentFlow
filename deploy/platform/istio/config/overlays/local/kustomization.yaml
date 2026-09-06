@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  # Admin UIs are only published locally (see plan section 5).
+  - virtualservices.yaml

@@ -1,0 +1,22 @@
+########################################################################
+# cert-manager - EKS overrides.
+#
+# Same private-CA model as local: the demo domain is *.<eip>.sslip.io, which
+# is not worth an ACME account. `make aws-trust-ca` adds the CA to the
+# operator's keychain. Route53 + ACM is the production answer (ADR 0009).
+########################################################################
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    memory: 256Mi
+
+cainjector:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+    limits:
+      memory: 384Mi

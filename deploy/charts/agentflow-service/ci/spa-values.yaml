@@ -1,0 +1,79 @@
+# Profile "spa" (studio, dashboard): Rollout + Istio canary without analysis,
+# nginx-unprivileged on 8080, runtime configuration injected as APP_* env vars.
+appLabel: studio
+image:
+  repository: ghcr.io/billkarkariy/agentflow-studio
+  tag: sha-1234567
+replicaCount: 2
+containerPort: 8080
+
+service:
+  enabled: true
+  port: 80
+  appProtocol: http
+
+rollout:
+  enabled: true
+  canary:
+    trafficRouting:
+      istio:
+        enabled: true
+    analysis:
+      enabled: false
+
+runtimeConfig:
+  enabled: true
+  values:
+    API_BASE_URL: https://api.agentflow.test
+    RABBITMQ_MGMT_URL: https://rabbitmq.agentflow.test
+
+probes:
+  startup:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+istio:
+  virtualService:
+    enabled: true
+    gateways:
+      - istio-ingress/agentflow-gateway
+    hosts:
+      - studio.agentflow.test
+    timeout: 30s
+    retries:
+      attempts: 2
+      retryOn: "connect-failure,refused-stream,reset"
+  destinationRule:
+    enabled: true

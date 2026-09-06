@@ -1,0 +1,23 @@
+{{- if or .Values.istio.destinationRule.enabled (include "agentflow-service.istioTrafficRouting" .) }}
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ include "agentflow-service.fullname" . }}
+  labels:
+    {{- include "agentflow-service.labels" . | nindent 4 }}
+spec:
+  host: {{ include "agentflow-service.fullname" . }}
+  {{- with .Values.istio.destinationRule.trafficPolicy }}
+  trafficPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  # Argo Rollouts owns these subsets at runtime: it appends the
+  # rollouts-pod-template-hash label to each of them during a canary.
+  subsets:
+    - name: stable
+      labels:
+        app: {{ include "agentflow-service.appLabel" . }}
+    - name: canary
+      labels:
+        app: {{ include "agentflow-service.appLabel" . }}
+{{- end }}

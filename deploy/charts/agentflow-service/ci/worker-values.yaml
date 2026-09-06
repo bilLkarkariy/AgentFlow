@@ -1,0 +1,59 @@
+# Profile "worker": plain Deployment, no Service, metrics port 9100, HPA.
+appLabel: worker
+image:
+  repository: ghcr.io/billkarkariy/agentflow-worker
+  tag: sha-1234567
+containerPort: 9100
+
+service:
+  enabled: false
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+config:
+  API_URL: http://agentflow-api
+  METRICS_PORT: "9100"
+  LOG_LEVEL: info
+  DEPLOY_ENV: local
+
+secrets:
+  existingSecret: agentflow-worker-secrets
+
+probes:
+  startup:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9100"
+  prometheus.io/path: /metrics

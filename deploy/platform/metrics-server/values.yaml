@@ -1,0 +1,34 @@
+########################################################################
+# metrics-server - shared values.
+# Chart: metrics-server/metrics-server (see deploy/versions.yaml).
+# Provides `kubectl top` and the HPA metrics used by the worker HPA.
+########################################################################
+
+replicas: 1
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+# Scraped through the annotated-pods ScrapeConfig (WP8), not a ServiceMonitor.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "10250"
+  prometheus.io/path: /metrics
+  prometheus.io/scheme: https
+
+metrics:
+  enabled: true
+
+serviceMonitor:
+  enabled: false
+
+apiService:
+  create: true
+  insecureSkipTLSVerify: true
+
+podDisruptionBudget:
+  enabled: false
