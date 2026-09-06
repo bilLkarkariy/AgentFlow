@@ -14,7 +14,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from celery.signals import worker_ready, worker_shutdown
+from celery.signals import worker_init, worker_shutdown
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 logger = logging.getLogger(__name__)
@@ -110,8 +110,11 @@ def stop():
         server.server_close()
 
 
-@worker_ready.connect
-def on_worker_ready(**_kwargs):
+@worker_init.connect
+def on_worker_init(**_kwargs):
+    # Start before the broker connection so /healthz answers 503 (not a
+    # refused TCP connection) while RabbitMQ is still coming up: the kubelet
+    # probe then sees an honest "not ready" instead of restarting the pod.
     # Never let a port clash take the worker down: it still consumes tasks.
     try:
         start()
