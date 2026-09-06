@@ -112,7 +112,7 @@ load_outputs() {
   local dir="$TF_DIR"
   [[ "$dir" == /* ]] || dir="${REPO_ROOT}/${TF_DIR}"
   [[ -d "$dir" ]] || die "no Terraform directory at ${TF_DIR} (is infra/envs/aws-demo checked out?)"
-  OUTPUT_JSON="$(mktemp -t agentflow-render)"
+  OUTPUT_JSON="$(mktemp "${TMPDIR:-/tmp}/agentflow-render.XXXXXX")"
   log "reading terraform -chdir=${TF_DIR} output -json"
   terraform -chdir="$dir" output -json > "$OUTPUT_JSON" \
     || die "terraform output failed; run \`make aws-up\` first"
@@ -198,9 +198,9 @@ render_file() {
   [[ -f "$file" ]] || die "expected file is missing: ${rel}"
 
   local marked edited result
-  marked="$(mktemp -t agentflow-render)"
-  edited="$(mktemp -t agentflow-render)"
-  result="$(mktemp -t agentflow-render)"
+  marked="$(mktemp "${TMPDIR:-/tmp}/agentflow-render.XXXXXX")"
+  edited="$(mktemp "${TMPDIR:-/tmp}/agentflow-render.XXXXXX")"
+  result="$(mktemp "${TMPDIR:-/tmp}/agentflow-render.XXXXXX")"
   # shellcheck disable=SC2064  # expand the paths now, not at trap time
   trap "rm -f '$marked' '$edited' '$result'" RETURN
 

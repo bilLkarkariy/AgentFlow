@@ -98,7 +98,7 @@ grafana_user() {
 # Forwards
 ########################################################################
 PIDS=()
-LOGDIR="$(mktemp -d -t agentflow-ui)"
+LOGDIR="$(mktemp -d "${TMPDIR:-/tmp}/agentflow-ui.XXXXXX")"
 
 cleanup() {
   local pid

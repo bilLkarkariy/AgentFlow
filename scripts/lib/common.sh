@@ -278,7 +278,7 @@ tf_out_json() {
     printf '%s\n' "$_tf_out_cache"
     return 0
   fi
-  _tf_out_cache="$(mktemp -t agentflow-tfout)"
+  _tf_out_cache="$(mktemp "${TMPDIR:-/tmp}/agentflow-tfout.XXXXXX")"
   if ! terraform -chdir="$dir" output -json > "$_tf_out_cache" 2>/dev/null; then
     rm -f "$_tf_out_cache"
     _tf_out_cache=""

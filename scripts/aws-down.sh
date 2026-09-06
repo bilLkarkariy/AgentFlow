@@ -205,7 +205,7 @@ run terraform -chdir="$TF_ABS" init -reconfigure -input=false \
   -backend-config="encrypt=true" \
   -backend-config="use_lockfile=true"
 
-DESTROY_LOG="$(mktemp -t agentflow-destroy)"
+DESTROY_LOG="$(mktemp "${TMPDIR:-/tmp}/agentflow-destroy.XXXXXX")"
 
 destroy() {
   if [[ "$DRY_RUN" == "1" ]]; then
