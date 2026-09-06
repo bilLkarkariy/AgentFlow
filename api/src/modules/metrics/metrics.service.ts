@@ -1,34 +1,59 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { Gauge, register } from 'prom-client';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
+import { AgentMetricsService } from './agent-metrics.service';
 
+const QUEUE_NAME = 'agent-run';
+const QUEUE_STATES = ['waiting', 'active', 'delayed', 'failed'] as const;
+
+/**
+ * Publishes `agentflow_queue_depth{queue,state}`.
+ *
+ * The BullMQ queue is created once and kept for the lifetime of the process:
+ * the previous implementation opened and closed a Redis connection every five
+ * seconds, which showed up as a connection storm on the Redis dashboards.
+ */
 @Injectable()
-export class MetricsService implements OnModuleInit {
-  private queueLengthGauge: Gauge<'queue'>;
+export class MetricsService implements OnModuleDestroy {
+  private readonly logger = new Logger(MetricsService.name);
+  private readonly queue: Queue;
 
-  constructor(private configService: ConfigService) {
-    this.queueLengthGauge = new Gauge({
-      name: 'queue_length',
-      help: 'Current length of the queue',
-      labelNames: ['queue'] as const,
-      registers: [register],
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly metrics: AgentMetricsService,
+  ) {
+    this.queue = new Queue(QUEUE_NAME, {
+      connection: {
+        host: this.configService.get<string>('REDIS_HOST') ?? 'localhost',
+        port: Number(this.configService.get<string>('REDIS_PORT') ?? 6379),
+      },
     });
-  }
-
-  onModuleInit() {
-    // Default metrics are already collected in MetricsController
+    // Redis being down must never take the api down: probes stay green.
+    this.queue.on('error', err =>
+      this.logger.warn(`agent-run queue connection error: ${err.message}`),
+    );
+    // Publish the series immediately, before the first cron tick.
+    for (const state of QUEUE_STATES) {
+      this.metrics.setQueueDepth(QUEUE_NAME, state, 0);
+    }
   }
 
   @Cron(CronExpression.EVERY_5_SECONDS)
-  async updateQueueLength() {
-    const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
-    const port = parseInt(this.configService.get<string>('REDIS_PORT') || '6379', 10);
-    const queue = new Queue('agent-run', { connection: { host, port } });
-    const counts = await queue.getJobCounts('waiting', 'active', 'delayed');
-    const total = counts.waiting + counts.active + counts.delayed;
-    this.queueLengthGauge.set({ queue: 'agent-run' }, total);
-    await queue.close();
+  async updateQueueDepth(): Promise<void> {
+    try {
+      const counts = await this.queue.getJobCounts(...QUEUE_STATES);
+      for (const state of QUEUE_STATES) {
+        this.metrics.setQueueDepth(QUEUE_NAME, state, counts[state] ?? 0);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Unable to read ${QUEUE_NAME} job counts: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.queue.close().catch(() => undefined);
   }
 }

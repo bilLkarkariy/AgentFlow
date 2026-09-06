@@ -16,7 +16,6 @@ export class SlackAlertInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest();
-    console.log('[SlackAlertInterceptor] intercept', req.method, req.url);
     return next.handle().pipe(
       catchError(err => {
         const status = err instanceof HttpException ? err.getStatus() : 500;
@@ -32,9 +31,9 @@ export class SlackAlertInterceptor implements NestInterceptor {
           stack: err.stack,
           timestamp: new Date().toISOString(),
         };
-        console.log('[SlackAlertInterceptor] enqueue payload', payload);
-        this.alertQueue.add('slack-alert', payload).catch(err => console.error('Queue add error:', err));
-        console.log('[SlackAlertInterceptor] job added to queue');
+        this.alertQueue
+          .add('slack-alert', payload)
+          .catch(e => this.logger.error(`Queue add error: ${e.message}`));
         return throwError(() => err);
       }),
     );

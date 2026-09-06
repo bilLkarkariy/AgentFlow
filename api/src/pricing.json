@@ -1,5 +1,10 @@
 {
-  "gpt-4": 0.03,
-  "gpt-3.5": 0.002,
-  "default": 0.001
+  "models": {
+    "gpt-4o": { "outputPer1k": 0.01 },
+    "gpt-4o-mini": { "outputPer1k": 0.0006 },
+    "gpt-4.1": { "outputPer1k": 0.008 },
+    "gpt-4": { "outputPer1k": 0.03 },
+    "gpt-3.5": { "outputPer1k": 0.002 }
+  },
+  "default": { "outputPer1k": 0.001 }
 }

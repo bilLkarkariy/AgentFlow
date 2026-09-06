@@ -1,3 +1,4 @@
+import { register } from 'prom-client';
 import { AgentRunProcessor } from './agent-run.processor';
 
 describe('AgentRunProcessor', () => {
@@ -46,5 +47,12 @@ describe('AgentRunProcessor', () => {
       'log',
       expect.objectContaining({ message: 'Agent run complete' }),
     );
+  });
+
+  it('registers no legacy per-job metric (they live in AgentPythonClientService)', () => {
+    const legacy = register
+      .getMetricsAsArray()
+      .filter(metric => /^agent_/.test(metric.name));
+    expect(legacy).toHaveLength(0);
   });
 });

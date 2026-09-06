@@ -1,10 +1,7 @@
 import { Controller, Get, Res } from '@nestjs/common';
-import { register, collectDefaultMetrics } from 'prom-client';
+import { register } from 'prom-client';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-
-// Collect default metrics (CPU, memory, event loop, etc.)
-collectDefaultMetrics();
 
 @ApiTags('Metrics')
 @Controller('metrics')

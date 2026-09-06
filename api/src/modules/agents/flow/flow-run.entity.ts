@@ -32,7 +32,9 @@ export class FlowRun {
   nodes: FlowRunNode[];
 
   @Column({ type: 'simple-json', nullable: true })
-  stats: { tokens: number; euros: number };
+  // `euros` is kept for the existing UI; `usd` is the real figure and
+  // `model` the normalized pricing key (see PricingService).
+  stats: { tokens: number; euros: number; usd?: number; model?: string };
 
   @CreateDateColumn()
   createdAt: Date;
