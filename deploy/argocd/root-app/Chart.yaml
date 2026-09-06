@@ -1,0 +1,6 @@
+apiVersion: v2
+name: agentflow-root-app
+description: The single ArgoCD Application (app-of-apps entry point) that renders deploy/platform/bootstrap. Installed by Terraform right after ArgoCD, as a separate release so the Application CRD exists first.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

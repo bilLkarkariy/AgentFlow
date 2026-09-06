@@ -1,0 +1,13 @@
+# Installed by infra/envs/local and infra/envs/aws-demo (helm_release) after the
+# argo-cd release. Terraform overrides these with `set`.
+name: platform-root
+argocdNamespace: argocd
+repoURL: https://github.com/bilLkarkariy/AgentFlow.git
+gitRevision: main
+path: deploy/platform/bootstrap
+env: local            # selects values-<env>.yaml in the bootstrap chart
+domain: 127.0.0.1.sslip.io
+profile: full         # full | minimal
+# Extra Helm parameters passed to the bootstrap chart, e.g.
+#   global.aws.region: eu-west-1
+extraParameters: {}

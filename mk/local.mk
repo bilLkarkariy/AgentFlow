@@ -74,3 +74,6 @@ local-down: ## Destroy the kind cluster and everything in it
 		$(TF_VARS)
 	@echo "The /etc/hosts entry is left in place. Remove it with:"
 	@echo "  $(REPO_ROOT)/scripts/hosts-setup.sh --remove"
+
+local-images: ## Build the 4 images locally (tag sha-<HEAD>) and load them into kind
+	TAG=$(TAG) $(REPO_ROOT)/scripts/local-images.sh

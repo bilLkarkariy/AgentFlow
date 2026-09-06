@@ -4,7 +4,7 @@
 # Terraform owns exactly three things:
 #   1. the kind cluster,
 #   2. the ArgoCD release,
-#   3. the root Application `platform-root`.
+#   3. the root Application `platform-root` (deploy/argocd/root-app chart).
 #
 # Everything else is reconciled by ArgoCD from deploy/platform/bootstrap.
 ########################################################################
@@ -51,15 +51,28 @@ resource "helm_release" "argocd" {
   values = [
     file("${path.module}/../../../deploy/argocd/argocd-values.yaml"),
     file("${path.module}/../../../deploy/argocd/argocd-values-local.yaml"),
-    templatefile("${path.module}/root-app.yaml.tftpl", {
-      argocd_namespace = var.argocd_namespace
-      repo_url         = var.gitops_repo_url
-      git_revision     = var.gitops_revision
-      env              = "local"
-      domain           = var.domain
-      profile          = var.platform_profile
-    }),
   ]
 
   depends_on = [module.kind_cluster]
+}
+
+# The root Application is a separate release: Helm cannot create a CR in the
+# same release that installs its CRD (the argo-cd chart ships the Application
+# CRD as a template).
+resource "helm_release" "platform_root" {
+  name      = "platform-root"
+  chart     = "${path.module}/../../../deploy/argocd/root-app"
+  namespace = var.argocd_namespace
+  wait      = false
+
+  set = [
+    { name = "argocdNamespace", value = var.argocd_namespace },
+    { name = "repoURL", value = var.gitops_repo_url },
+    { name = "gitRevision", value = var.gitops_revision },
+    { name = "env", value = "local" },
+    { name = "domain", value = var.domain },
+    { name = "profile", value = var.platform_profile },
+  ]
+
+  depends_on = [helm_release.argocd]
 }
