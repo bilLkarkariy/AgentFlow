@@ -243,7 +243,9 @@ delete_cluster_enis_and_sgs() {
     log "detaching and deleting ENI ${eni}"
     att="$(aws ec2 describe-network-interfaces --network-interface-ids "$eni" \
       --query 'NetworkInterfaces[0].Attachment.AttachmentId' --output text 2>/dev/null || true)"
-    [[ -n "$att" && "$att" != "None" ]] && aws ec2 detach-network-interface --attachment-id "$att" --force || true
+    if [[ -n "$att" && "$att" != "None" ]]; then
+      aws ec2 detach-network-interface --attachment-id "$att" --force || true
+    fi
     aws ec2 delete-network-interface --network-interface-id "$eni" || true
   done < <(aws ec2 describe-network-interfaces \
     --filters "Name=vpc-id,Values=${vpc_id}" "Name=status,Values=available,in-use" \

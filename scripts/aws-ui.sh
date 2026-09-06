@@ -104,7 +104,7 @@ cleanup() {
   local pid
   printf '\n'
   for pid in "${PIDS[@]:-}"; do
-    [[ -n "$pid" ]] && kill "$pid" >/dev/null 2>&1 || true
+    if [[ -n "$pid" ]]; then kill "$pid" >/dev/null 2>&1 || true; fi
   done
   wait >/dev/null 2>&1 || true
   log "all port-forwards stopped"

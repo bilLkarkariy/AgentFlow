@@ -37,6 +37,9 @@ RUN pnpm --filter dashboard run build
 # Stage 2 - runtime (nginx as uid 101 on port 8080, read-only rootfs friendly)
 # ---------------------------------------------------------------------------
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+# Pick up Alpine security fixes newer than the base tag (openssl and friends).
+USER root
+RUN apk upgrade --no-cache
 
 # Pre-rendered config: the stock 20-envsubst-on-templates.sh silently skips rendering when
 # /etc/nginx/conf.d is not writable (read-only rootfs), so the server block must already be
