@@ -13,10 +13,10 @@ replicaCount: 1
 
 runtimeConfig:
   values:
-    API_BASE_URL: https://api.agentflow.test
-    RABBITMQ_MGMT_URL: https://rabbitmq.agentflow.test
+    API_BASE_URL: https://api.127.0.0.1.sslip.io
+    RABBITMQ_MGMT_URL: https://rabbitmq.127.0.0.1.sslip.io
 
 istio:
   virtualService:
     hosts:
-      - dashboard.agentflow.test
+      - dashboard.127.0.0.1.sslip.io

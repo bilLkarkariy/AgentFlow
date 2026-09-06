@@ -15,5 +15,5 @@ patches:
       - op: replace
         path: /spec/dnsNames
         value:
-          - "*.agentflow.test"
-          - "agentflow.test"
+          - "*.127.0.0.1.sslip.io"
+          - "127.0.0.1.sslip.io"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Adds (or refreshes) the single /etc/hosts line that makes
-# *.agentflow.test resolve to 127.0.0.1, where the kind cluster forwards
+# *.127.0.0.1.sslip.io resolve to 127.0.0.1, where the kind cluster forwards
 # host port 80/443 to the Istio ingress gateway.
 #
 # Idempotent: the line is tagged with "# agentflow" and replaced in place.
@@ -9,7 +9,7 @@
 #
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-agentflow.test}"
+DOMAIN="${DOMAIN:-127.0.0.1.sslip.io}"
 HOSTS_FILE="${HOSTS_FILE:-/etc/hosts}"
 MARKER="# agentflow"
 SERVICES=(api studio dashboard rabbitmq grafana argocd kiali rollouts prometheus alertmanager)
@@ -21,7 +21,7 @@ Usage: $(basename "$0") [--remove] [--dry-run]
   --remove   drop the "$MARKER" line from $HOSTS_FILE
   --dry-run  print what would change, touch nothing
 
-Environment: DOMAIN (default: agentflow.test), HOSTS_FILE (default: /etc/hosts)
+Environment: DOMAIN (default: 127.0.0.1.sslip.io), HOSTS_FILE (default: /etc/hosts)
 EOF
 }
 

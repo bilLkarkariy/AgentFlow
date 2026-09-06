@@ -30,7 +30,7 @@ local-up: check-tools ## Create the kind cluster, install ArgoCD, wait for every
 		-var 'domain=$(DOMAIN)' \
 		$(TF_VARS)
 	kind export kubeconfig --name $(KIND_CLUSTER)
-	$(REPO_ROOT)/scripts/hosts-setup.sh
+	@case '$(DOMAIN)' in *sslip.io|*nip.io) echo 'hosts: $(DOMAIN) resolves via public DNS, skipping /etc/hosts';; *) $(REPO_ROOT)/scripts/hosts-setup.sh;; esac
 	$(REPO_ROOT)/scripts/seed-local-secrets.sh
 	$(MAKE) local-wait
 

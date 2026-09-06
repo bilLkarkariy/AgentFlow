@@ -117,7 +117,7 @@ uses `exec`.)
 | `service.annotations` | `{}` | |
 | `istio.virtualService.enabled` | `false` | |
 | `istio.virtualService.gateways` | `[istio-ingress/agentflow-gateway]` | |
-| `istio.virtualService.hosts` | `[]` | e.g. `[api.agentflow.test]`. Empty falls back to the internal name. |
+| `istio.virtualService.hosts` | `[]` | e.g. `[api.127.0.0.1.sslip.io]`. Empty falls back to the internal name. |
 | `istio.virtualService.streamingPaths` | `[]` | URI matches routed to the `streaming` route: `{prefix: /ws/flow}`, `{exact: ...}` or `{regex: ...}`. |
 | `istio.virtualService.timeout` | `30s` | `primary` route only. |
 | `istio.virtualService.retries` | `attempts: 2`, `retryOn: connect-failure,refused-stream,reset` | `primary` route only. |
@@ -255,7 +255,7 @@ secrets: { existingSecret: agentflow-api-secrets }
 istio:
   virtualService:
     enabled: true
-    hosts: [api.agentflow.test]
+    hosts: [api.127.0.0.1.sslip.io]
     streamingPaths:
       - prefix: /ws/flow
       - prefix: /socket.io
@@ -299,8 +299,8 @@ rollout:
 runtimeConfig:
   enabled: true
   values:
-    API_BASE_URL: https://api.agentflow.test
-    RABBITMQ_MGMT_URL: https://rabbitmq.agentflow.test
+    API_BASE_URL: https://api.127.0.0.1.sslip.io
+    RABBITMQ_MGMT_URL: https://rabbitmq.127.0.0.1.sslip.io
 ```
 
 Renders: ConfigMap, ServiceAccount, Service, Rollout, VirtualService,

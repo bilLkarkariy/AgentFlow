@@ -128,8 +128,8 @@ Prometheus Operator objects to keep in sync with the mesh.
 | `DEPLOY_ENV` | `local` | `aws` |
 | `POSTGRES_SSL` | `"false"` | `"true"` (RDS `rds.force_ssl=1`) |
 | `OTEL_TRACES_SAMPLER_ARG` | `"1.0"` | `"0.1"` |
-| `APP_API_BASE_URL` (SPA) | `https://api.agentflow.test` | `https://api.<domain>` |
-| `APP_RABBITMQ_MGMT_URL` (dashboard) | `https://rabbitmq.agentflow.test` | `http://localhost:15672` (port-forward) |
+| `APP_API_BASE_URL` (SPA) | `https://api.127.0.0.1.sslip.io` | `https://api.<domain>` |
+| `APP_RABBITMQ_MGMT_URL` (dashboard) | `https://rabbitmq.127.0.0.1.sslip.io` | `http://localhost:15672` (port-forward) |
 
 Shared by both: `PORT=3000`, `NODE_ENV=production`, `LOG_LEVEL=info`,
 `REDIS_HOST=agentflow-redis`, `REDIS_PORT=6379`, `API_URL=http://127.0.0.1:3000`
@@ -142,10 +142,10 @@ Shared by both: `PORT=3000`, `NODE_ENV=production`, `LOG_LEVEL=info`,
 
 | service | local | aws |
 |---|---|---|
-| api | `api.agentflow.test` | `api.DOMAIN_PLACEHOLDER` |
-| studio | `studio.agentflow.test` | `studio.DOMAIN_PLACEHOLDER` |
-| dashboard | `dashboard.agentflow.test` | `dashboard.DOMAIN_PLACEHOLDER` |
-| rabbitmq management | `rabbitmq.agentflow.test` | port-forward |
+| api | `api.127.0.0.1.sslip.io` | `api.DOMAIN_PLACEHOLDER` |
+| studio | `studio.127.0.0.1.sslip.io` | `studio.DOMAIN_PLACEHOLDER` |
+| dashboard | `dashboard.127.0.0.1.sslip.io` | `dashboard.DOMAIN_PLACEHOLDER` |
+| rabbitmq management | `rabbitmq.127.0.0.1.sslip.io` | port-forward |
 
 All through Gateway `istio-ingress/agentflow-gateway`.
 
@@ -246,7 +246,7 @@ real domain substituted for `DOMAIN_PLACEHOLDER`.
 | api channel dies with `PRECONDITION_FAILED` on `agentflow.flow-run` | the queue is declared both by the api and by RabbitMQ `definitions.json` | keep `rabbitmq.definitions.declareAppQueue: false` unless both sides declare identical arguments |
 | worker Deployment shows a replica diff | nothing: the HPA owns `spec.replicas` and the chart omits the field when `hpa.enabled` | — |
 | `make lint-versions` fails | a chart pin drifted | `deploy/versions.yaml` is the source of truth; fix the pin |
-| dashboard DLQ link 404s locally | `rabbitmq.agentflow.test` missing from `/etc/hosts` | add it (`scripts/hosts-setup.sh`) or use `kubectl -n agentflow port-forward svc/agentflow-rabbitmq 15672` |
+| dashboard DLQ link 404s locally | `rabbitmq.127.0.0.1.sslip.io` missing from `/etc/hosts` | add it (`scripts/hosts-setup.sh`) or use `kubectl -n agentflow port-forward svc/agentflow-rabbitmq 15672` |
 
 Useful one-liners:
 

@@ -24,7 +24,7 @@ rabbitmq:
     enabled: true
   managementIngress:
     enabled: true
-    host: rabbitmq.agentflow.test
+    host: rabbitmq.127.0.0.1.sslip.io
 
 appSecrets:
   create: true

@@ -78,7 +78,7 @@ istio:
     gateways:
       - istio-ingress/agentflow-gateway
     hosts:
-      - api.agentflow.test
+      - api.127.0.0.1.sslip.io
     streamingPaths:
       - prefix: /ws/flow
       - prefix: /socket.io

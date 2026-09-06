@@ -15,7 +15,7 @@ metadata:
   namespace: istio-ingress
 spec:
   hosts:
-    - argocd.agentflow.test
+    - argocd.127.0.0.1.sslip.io
   gateways:
     - agentflow-gateway
   http:
@@ -34,7 +34,7 @@ metadata:
   namespace: istio-ingress
 spec:
   hosts:
-    - kiali.agentflow.test
+    - kiali.127.0.0.1.sslip.io
   gateways:
     - agentflow-gateway
   http:
@@ -53,7 +53,7 @@ metadata:
   namespace: istio-ingress
 spec:
   hosts:
-    - rollouts.agentflow.test
+    - rollouts.127.0.0.1.sslip.io
   gateways:
     - agentflow-gateway
   http:
@@ -72,7 +72,7 @@ metadata:
   namespace: istio-ingress
 spec:
   hosts:
-    - grafana.agentflow.test
+    - grafana.127.0.0.1.sslip.io
   gateways:
     - agentflow-gateway
   http:
@@ -91,7 +91,7 @@ metadata:
   namespace: istio-ingress
 spec:
   hosts:
-    - prometheus.agentflow.test
+    - prometheus.127.0.0.1.sslip.io
   gateways:
     - agentflow-gateway
   http:
@@ -110,7 +110,7 @@ metadata:
   namespace: istio-ingress
 spec:
   hosts:
-    - alertmanager.agentflow.test
+    - alertmanager.127.0.0.1.sslip.io
   gateways:
     - agentflow-gateway
   http:

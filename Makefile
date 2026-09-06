@@ -18,7 +18,7 @@ SHELL := /usr/bin/env bash
 REPO_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 # Shared defaults; every mk/*.mk may override them with `?=`.
-DOMAIN        ?= agentflow.test
+DOMAIN        ?= 127.0.0.1.sslip.io
 KIND_CLUSTER  ?= agentflow-local
 KUBE_CONTEXT  ?= kind-$(KIND_CLUSTER)
 ARGOCD_NS     ?= argocd

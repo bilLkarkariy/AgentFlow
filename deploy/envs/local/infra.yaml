@@ -33,7 +33,7 @@ rabbitmq:
     # Target of the dashboard DLQ console link. Needs the host in
     # /etc/hosts (scripts/hosts-setup.sh).
     enabled: true
-    host: rabbitmq.agentflow.test
+    host: rabbitmq.127.0.0.1.sslip.io
     gateways:
       - istio-ingress/agentflow-gateway
 

@@ -19,7 +19,7 @@ infra/
 1. A **kind** cluster named `agentflow-local`: one control plane, one worker,
    node image pinned in `deploy/versions.yaml`.
 2. Host port mappings **80 -> NodePort 30080** and **443 -> NodePort 30443**,
-   which is how `http://argocd.agentflow.test` reaches the Istio ingress
+   which is how `http://argocd.127.0.0.1.sslip.io` reaches the Istio ingress
    gateway with no port-forward.
 3. The **ArgoCD** Helm release, configured by
    `deploy/argocd/argocd-values.yaml` + `argocd-values-local.yaml`.
@@ -59,7 +59,7 @@ Colima cannot bind privileged host ports, so map 8080/8443 instead:
 make local-up TF_VARS='-var http_port=8080 -var https_port=8443'
 ```
 
-URLs then become `http://argocd.agentflow.test:8080`.
+URLs then become `http://argocd.127.0.0.1.sslip.io:8080`.
 
 ## Variables (`infra/envs/local`)
 
@@ -70,7 +70,7 @@ Every variable has a default, so `terraform apply` never prompts.
 | `cluster_name` | `agentflow-local` | kind cluster / kubectl context suffix |
 | `http_port` / `https_port` | `80` / `443` | host ports mapped to NodePorts 30080/30443 |
 | `worker_count` | `1` | worker nodes on top of the control plane |
-| `domain` | `agentflow.test` | wildcard domain served by the gateway |
+| `domain` | `127.0.0.1.sslip.io` | wildcard domain served by the gateway |
 | `gitops_repo_url` | `https://github.com/bilLkarkariy/AgentFlow.git` | repository ArgoCD reconciles |
 | `gitops_revision` | `main` | branch/tag/SHA tracked by `platform-root` |
 | `platform_profile` | `full` | `minimal` or `full` (see the catalogue) |
@@ -114,5 +114,5 @@ Local state on purpose for `infra/envs/local`: the cluster is disposable and
 | `terraform apply` hangs on `kind_cluster` | Docker VM not started | Open OrbStack, then `make local-up` again |
 | Port 80 already bound | Another local web server | Stop it, or use `TF_VARS='-var http_port=8080 -var https_port=8443'` |
 | Applications stuck `Progressing` past wave 4 | istiod not ready, usually memory | `make local-status`, then `LOCAL_PROFILE=minimal` |
-| `*.agentflow.test` does not resolve | `/etc/hosts` line missing | `scripts/hosts-setup.sh` |
+| `*.127.0.0.1.sslip.io` does not resolve | `/etc/hosts` line missing | `scripts/hosts-setup.sh` |
 | Browser TLS warning | Private CA `agentflow-ca` | Expected locally; use plain HTTP or trust the CA |

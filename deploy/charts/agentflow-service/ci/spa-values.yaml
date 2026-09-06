@@ -24,8 +24,8 @@ rollout:
 runtimeConfig:
   enabled: true
   values:
-    API_BASE_URL: https://api.agentflow.test
-    RABBITMQ_MGMT_URL: https://rabbitmq.agentflow.test
+    API_BASE_URL: https://api.127.0.0.1.sslip.io
+    RABBITMQ_MGMT_URL: https://rabbitmq.127.0.0.1.sslip.io
 
 probes:
   startup:
@@ -70,7 +70,7 @@ istio:
     gateways:
       - istio-ingress/agentflow-gateway
     hosts:
-      - studio.agentflow.test
+      - studio.127.0.0.1.sslip.io
     timeout: 30s
     retries:
       attempts: 2

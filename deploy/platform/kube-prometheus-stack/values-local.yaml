@@ -2,15 +2,15 @@
 # kube-prometheus-stack - kind / OrbStack overrides.
 #
 # Reached through the Istio gateway:
-#   https://grafana.agentflow.test
-#   https://prometheus.agentflow.test
-#   https://alertmanager.agentflow.test
+#   https://grafana.127.0.0.1.sslip.io
+#   https://prometheus.127.0.0.1.sslip.io
+#   https://alertmanager.127.0.0.1.sslip.io
 # (VirtualServices in deploy/platform/istio/config/overlays/local).
 ########################################################################
 
 prometheus:
   prometheusSpec:
-    externalUrl: https://prometheus.agentflow.test
+    externalUrl: https://prometheus.127.0.0.1.sslip.io
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -24,7 +24,7 @@ prometheus:
 
 alertmanager:
   alertmanagerSpec:
-    externalUrl: https://alertmanager.agentflow.test
+    externalUrl: https://alertmanager.127.0.0.1.sslip.io
 
 grafana:
   # Demo cluster, anonymous Viewer is already on; this password only
@@ -34,7 +34,7 @@ grafana:
 
   grafana.ini:
     server:
-      root_url: https://grafana.agentflow.test
+      root_url: https://grafana.127.0.0.1.sslip.io
       serve_from_sub_path: false
 
 prometheus-node-exporter:

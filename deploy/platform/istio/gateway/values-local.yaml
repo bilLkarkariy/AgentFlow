@@ -3,7 +3,7 @@
 #
 # kind has no load balancer. The Service is a NodePort on fixed ports
 # 30080/30443, and infra/modules/kind_cluster maps host 80 -> 30080 and
-# host 443 -> 30443 (extraPortMappings). Result: http://argocd.agentflow.test
+# host 443 -> 30443 (extraPortMappings). Result: http://argocd.127.0.0.1.sslip.io
 # works straight from the browser, no port-forward.
 #
 # Change these ports together with infra/envs/local http_port/https_port.

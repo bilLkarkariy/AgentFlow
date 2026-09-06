@@ -34,7 +34,7 @@ variable "worker_count" {
 variable "domain" {
   description = "Wildcard domain served by the ingress gateway. Resolved through /etc/hosts (scripts/hosts-setup.sh)."
   type        = string
-  default     = "agentflow.test"
+  default     = "127.0.0.1.sslip.io"
 }
 
 variable "gitops_repo_url" {

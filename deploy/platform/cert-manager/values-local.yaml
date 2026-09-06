@@ -2,7 +2,7 @@
 # cert-manager - kind overrides.
 ########################################################################
 
-# Nothing resolves publicly on *.agentflow.test, and no ACME issuer is used
+# Nothing resolves publicly on *.127.0.0.1.sslip.io, and no ACME issuer is used
 # locally: keep the DNS-01 recursive resolvers off the default public list.
 config:
   apiVersion: controller.config.cert-manager.io/v1alpha1

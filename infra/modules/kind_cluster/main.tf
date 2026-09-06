@@ -5,7 +5,7 @@
 # + `worker_count` workers. Host ports http_port/https_port are forwarded
 # to the NodePorts 30080/30443 used by the Istio ingress gateway Service
 # (see deploy/platform/istio/gateway/values-local.yaml), so that
-# http://<svc>.agentflow.test resolves through /etc/hosts to 127.0.0.1
+# http://<svc>.127.0.0.1.sslip.io resolves through /etc/hosts to 127.0.0.1
 # and lands on the mesh without any port-forward.
 ########################################################################
 

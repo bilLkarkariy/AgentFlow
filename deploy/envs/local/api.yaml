@@ -29,4 +29,4 @@ database:
 istio:
   virtualService:
     hosts:
-      - api.agentflow.test
+      - api.127.0.0.1.sslip.io

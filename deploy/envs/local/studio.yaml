@@ -12,9 +12,9 @@ replicaCount: 1
 
 runtimeConfig:
   values:
-    API_BASE_URL: https://api.agentflow.test
+    API_BASE_URL: https://api.127.0.0.1.sslip.io
 
 istio:
   virtualService:
     hosts:
-      - studio.agentflow.test
+      - studio.127.0.0.1.sslip.io

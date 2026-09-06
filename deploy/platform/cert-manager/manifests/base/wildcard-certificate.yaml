@@ -1,7 +1,7 @@
 ########################################################################
 # Wildcard server certificate for the ingress gateway.
 # dnsNames are a placeholder here and replaced by every overlay, because
-# the domain differs per environment (agentflow.test / <eip>.sslip.io).
+# the domain differs per environment (127.0.0.1.sslip.io / <eip>.sslip.io).
 ########################################################################
 ---
 apiVersion: cert-manager.io/v1

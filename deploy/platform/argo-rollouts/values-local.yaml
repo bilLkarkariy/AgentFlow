@@ -3,7 +3,7 @@
 ########################################################################
 
 dashboard:
-  # The visual canary demo: http://rollouts.agentflow.test
+  # The visual canary demo: http://rollouts.127.0.0.1.sslip.io
   # Routed by deploy/platform/istio/config/overlays/local/virtualservices.yaml
   # to argo-rollouts-dashboard.argo-rollouts:3100.
   enabled: true

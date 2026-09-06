@@ -10,7 +10,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DOMAIN="${DOMAIN:-agentflow.test}"
+DOMAIN="${DOMAIN:-127.0.0.1.sslip.io}"
 HOSTS_MARKER="# agentflow"
 MIN_VM_GIB="${MIN_VM_GIB:-9}"
 

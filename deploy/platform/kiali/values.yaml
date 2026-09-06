@@ -36,7 +36,7 @@ deployment:
 
 server:
   port: 20001
-  # Served at the root of kiali.agentflow.test, not under /kiali.
+  # Served at the root of kiali.127.0.0.1.sslip.io, not under /kiali.
   web_root: /
 
 external_services:

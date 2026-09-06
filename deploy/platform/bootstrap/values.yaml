@@ -15,7 +15,7 @@ global:
   # Injected by platform-root: local | aws
   env: local
   # Wildcard domain served by istio-ingress/agentflow-gateway.
-  domain: agentflow.test
+  domain: 127.0.0.1.sslip.io
   # Git revision every Application tracks.
   gitRevision: main
   # minimal = core mesh + control plane only; full = everything.

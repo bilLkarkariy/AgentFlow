@@ -237,7 +237,7 @@ rabbitmq:
     # -- VirtualService publishing the management UI on the shared gateway.
     # Local convenience only; on AWS admin UIs go through `make aws-ui`.
     enabled: false
-    # -- External host, e.g. rabbitmq.agentflow.test.
+    # -- External host, e.g. rabbitmq.127.0.0.1.sslip.io.
     host: ""
     gateways:
       - istio-ingress/agentflow-gateway
