@@ -86,8 +86,19 @@ jobs:
 
       # -backend=false: the S3 backend of aws-demo needs an account id and
       # credentials, and neither belongs in a pull request.
+      # releases.hashicorp.com occasionally resets the connection mid
+      # download; three attempts cover that without hiding a real error.
       - name: terraform init
-        run: terraform -chdir=${{ matrix.stack }} init -backend=false -input=false
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if terraform -chdir=${{ matrix.stack }} init -backend=false -input=false; then
+              exit 0
+            fi
+            echo "init attempt ${attempt} failed, retrying in 15s"
+            sleep 15
+          done
+          exit 1
 
       - name: terraform validate
         run: terraform -chdir=${{ matrix.stack }} validate -no-color
@@ -186,6 +197,14 @@ jobs:
           for f in scripts/*.sh scripts/lib/*.sh; do
             bash -n "$f"
           done
+
+      # The preflight of aws-up.sh insists on terraform being installed,
+      # and the ubuntu image no longer ships it.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
 
       # A dry run is a real test: it walks the whole decision tree of both
       # scripts (preflight, recovery branches, waits) without a single
