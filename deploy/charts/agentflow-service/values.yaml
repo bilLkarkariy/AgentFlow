@@ -207,7 +207,7 @@ istio:
       - istio-ingress/agentflow-gateway
     # -- External hosts, e.g. [api.127.0.0.1.sslip.io].
     hosts: []
-    # -- URI matches sent to the `streaming` route (timeout 0s, no retries).
+    # -- URI matches sent to the `streaming` route (no timeout, no retries).
     # Each entry is an Istio StringMatch: { prefix: /ws/flow } or { regex: "..." }.
     streamingPaths: []
     # -- Timeout of the `primary` route.

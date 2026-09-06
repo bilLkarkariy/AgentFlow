@@ -5,12 +5,19 @@
 # two pre-allocated Elastic IPs, so the demo domain
 # <eip-with-dashes>.sslip.io stays stable across `make aws-up` sessions.
 #
-# Helm values cannot be templated, so the EIP allocation ids below are a
-# literal PLACEHOLDER. WP13 (scripts/aws-up.sh) substitutes them from the
-# Terraform output `ingress_eip_allocation_ids` before ArgoCD syncs this
-# component - equivalent to writing
-#   {{ .Values.global.aws.ingressEipAllocations }}
-# which Helm would not evaluate inside a values file.
+# Helm values cannot be templated, so the allocation and subnet ids below
+# are RENDERED INTO GIT: scripts/aws-render-env.sh writes them from the
+# Terraform outputs `ingress_eip_allocation_ids` and `public_subnet_ids`,
+# and scripts/aws-up.sh commits the result before waiting on ArgoCD. The
+# assignment is by yq key path, not by string substitution, so the second
+# provisioning overwrites yesterday's ids instead of looking for a
+# placeholder that is no longer there.
+#
+# The values that ship in Git are literal placeholders; they are valid
+# YAML and keep `helm template -f values-aws.yaml` runnable in CI, but a
+# cluster synced with them would leave the NLB in <pending> forever - by
+# design, since ArgoCD must never build an ingress for a VPC that does not
+# exist.
 ########################################################################
 
 service:
@@ -21,10 +28,12 @@ service:
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
     service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-    # PLACEHOLDER - comma separated eipalloc-... ids, one per tagged public
-    # subnet. A count mismatch leaves the NLB in <pending> forever.
+    # RENDERED - comma separated eipalloc-... ids, one per subnet listed
+    # below. A count mismatch leaves the NLB in <pending> forever, which is
+    # why both lines come from the same Terraform apply.
     service.beta.kubernetes.io/aws-load-balancer-eip-allocations: "PLACEHOLDER_EIP_ALLOCATIONS"
-    # PLACEHOLDER - comma separated subnet ids of the public subnets.
+    # RENDERED - comma separated ids of the public subnets, in the same
+    # order as the allocations above.
     service.beta.kubernetes.io/aws-load-balancer-subnets: "PLACEHOLDER_PUBLIC_SUBNETS"
     service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: HTTP
     service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /healthz/ready

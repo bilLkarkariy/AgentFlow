@@ -12,6 +12,10 @@ global:
   profile: full
 
 componentOverrides:
+  # EKS installs metrics-server as a managed add-on (infra/envs/aws-demo);
+  # the chart copy would fight it for kube-system/metrics-server.
+  metrics-server:
+    enabled: false
   # On EKS the CNI plugin removes the need for the NET_ADMIN init container
   # in every workload pod.
   istio-cni:

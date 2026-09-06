@@ -1,3 +1,19 @@
+########################################################################
+# External Secrets configuration - EKS overlay.
+#
+# One ClusterSecretStore (`aws` provider, IRSA) and one ExternalSecret per
+# consumer. Every secret value the platform needs on AWS comes from
+# Secrets Manager under agentflow/demo/*:
+#
+#   app       bootstrap  OPENAI_API_KEY and the optional OAuth keys
+#   ca        bootstrap  the demo root CA, stable across sessions
+#   db        aws-demo   RDS credentials + url
+#   rabbitmq  aws-demo   broker credentials + url
+#   grafana   aws-demo   Grafana admin credentials
+#
+# `app` and `ca` survive `make aws-down` (they live in infra/bootstrap);
+# the other three are recreated with the cluster.
+########################################################################
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -7,4 +23,6 @@ resources:
   - externalsecret-api.yaml
   - externalsecret-worker.yaml
   - externalsecret-db.yaml
+  - externalsecret-rabbitmq.yaml
+  - externalsecret-grafana.yaml
   - externalsecret-ca.yaml

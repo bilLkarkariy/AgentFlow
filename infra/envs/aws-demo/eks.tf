@@ -19,7 +19,7 @@ module "eks" {
   # Cost control. Control plane logs go to CloudWatch Logs, which bills
   # ingestion + storage and survives `terraform destroy` unless the log
   # group is managed here. Off, and no group created at all.
-  # trivy:ignore:AVD-AWS-0038 demo cluster, torn down after every session; audit logging is a cost, not a control, here
+  # (trivy AVD-AWS-0038 is a MEDIUM and is not in the HIGH/CRITICAL gate.)
   enabled_log_types           = []
   create_cloudwatch_log_group = false
 
@@ -28,7 +28,9 @@ module "eks" {
   # deletion on teardown. `encryption_config = null` disables the feature
   # outright - passing `{}` would still enable it and then fail because
   # create_kms_key = false leaves provider_key_arn null.
-  # trivy:ignore:AVD-AWS-0039 no KMS CMK on a cluster that lives ~4h and holds no production secret
+  # trivy flags this as AVD-AWS-0039; the waiver and its reasoning live in
+  # .trivyignore, because trivy reports it against the module's own main.tf
+  # where an inline comment cannot reach it.
   create_kms_key    = false
   encryption_config = null
 
@@ -59,8 +61,8 @@ module "eks" {
   # The API server is reachable from the internet: `make aws-up` runs from
   # a laptop with a dynamic IP and there is no bastion. Lock it down with
   # `api_allowed_cidrs = ["<your ip>/32"]` for anything long-lived.
-  # trivy:ignore:AVD-AWS-0040 public endpoint is required: no VPN, no bastion, no private subnet in this demo
-  # trivy:ignore:AVD-AWS-0041 api_allowed_cidrs narrows this when the user sets it
+  # trivy AVD-AWS-0040 / AVD-AWS-0041: waived in .trivyignore, same reason as
+  # above - the finding is attributed to the module file, not to this one.
   endpoint_public_access       = true
   endpoint_private_access      = true
   endpoint_public_access_cidrs = var.api_allowed_cidrs
@@ -93,6 +95,19 @@ module "eks" {
       service_account_role_arn = aws_iam_role.ebs_csi.arn
     }
 
+    # CONFLICT TO WATCH: the platform catalogue also installs metrics-server
+    # as a Helm chart at wave 1 (deploy/platform/bootstrap/values.yaml), which
+    # kind needs for --kubelet-insecure-tls. On EKS the managed add-on is the
+    # better answer (AWS keeps it patched, no TLS workaround), so
+    # deploy/platform/bootstrap/values-aws.yaml must disable the chart:
+    #
+    #   componentOverrides:
+    #     metrics-server:
+    #       enabled: false
+    #
+    # Without that, ArgoCD tries to create a Deployment kube-system/
+    # metrics-server that the add-on already owns and the Application goes
+    # permanently OutOfSync.
     metrics-server = {}
   }
 

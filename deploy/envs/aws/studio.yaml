@@ -1,6 +1,8 @@
 ########################################################################
 # agentflow-studio - EKS (aws).
-# DOMAIN_PLACEHOLDER becomes <eip-with-dashes>.sslip.io at cluster creation.
+# RENDERED: `runtimeConfig.values.API_BASE_URL` and
+# `istio.virtualService.hosts[0]` are written by
+# scripts/aws-render-env.sh from the Terraform output `ingress_domain`.
 ########################################################################
 
 image:

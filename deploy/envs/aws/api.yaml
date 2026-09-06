@@ -4,8 +4,11 @@
 # Promotion is a pull request, not an automatic bump: the tag below is only
 # changed by .github/workflows/promote-aws.yml.
 #
-# DOMAIN_PLACEHOLDER is replaced with <eip-with-dashes>.sslip.io when the
-# cluster is created (WP13 templates it from the Terraform output).
+# RENDERED: `istio.virtualService.hosts[0]` is written by
+# scripts/aws-render-env.sh from the Terraform output `ingress_domain`
+# (<eip-with-dashes>.sslip.io) and committed by scripts/aws-up.sh, so
+# ArgoCD only ever reads a host that resolves. DOMAIN_PLACEHOLDER is what
+# ships in Git before the first provisioning.
 ########################################################################
 
 image:

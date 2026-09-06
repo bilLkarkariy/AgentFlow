@@ -4,8 +4,9 @@
 # On AWS these are reached through `kubectl port-forward` (`make aws-ui`);
 # only api/studio/dashboard are published on *.<eip>.sslip.io.
 #
-# `timeout: 0s` everywhere on purpose: the Istio default is 15s, which cuts
-# ArgoCD log streaming, Grafana Live and the Rollouts watch API.
+# No `timeout` on purpose (Istio disables it when unset; `0s` is rejected by
+# the CRD): a timeout would cut ArgoCD log streaming, Grafana Live and the
+# Rollouts watch API.
 ########################################################################
 ---
 apiVersion: networking.istio.io/v1
@@ -25,7 +26,6 @@ spec:
             host: argocd-server.argocd.svc.cluster.local
             port:
               number: 80
-      timeout: 0s
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -44,7 +44,6 @@ spec:
             host: kiali.istio-system.svc.cluster.local
             port:
               number: 20001
-      timeout: 0s
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -63,7 +62,6 @@ spec:
             host: argo-rollouts-dashboard.argo-rollouts.svc.cluster.local
             port:
               number: 3100
-      timeout: 0s
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -82,7 +80,6 @@ spec:
             host: kube-prometheus-stack-grafana.observability.svc.cluster.local
             port:
               number: 80
-      timeout: 0s
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -101,7 +98,6 @@ spec:
             host: kube-prometheus-stack-prometheus.observability.svc.cluster.local
             port:
               number: 9090
-      timeout: 0s
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -120,4 +116,3 @@ spec:
             host: kube-prometheus-stack-alertmanager.observability.svc.cluster.local
             port:
               number: 9093
-      timeout: 0s

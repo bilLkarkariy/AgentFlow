@@ -40,7 +40,7 @@ locals {
 ########################################################################
 
 # Server access logging is off on purpose: it would need a second bucket (and a
-# second lifecycle policy) for a bucket that ever holds two state files, and S3
+# second lifecycle policy) for a bucket that only ever holds two state files, and S3
 # data events in CloudTrail already answer "who touched the state".
 #trivy:ignore:AVD-AWS-0089
 resource "aws_s3_bucket" "state" {
@@ -157,6 +157,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "state" {
 #
 # Budgets and Cost Anomaly Detection are free. `alert_email` receives a
 # confirmation mail for the anomaly subscription that must be accepted.
+#
+# Both APIs are non-regionalised (they resolve to the us-east-1 global
+# endpoint whatever `var.region` says), so no provider alias is needed.
 ########################################################################
 
 resource "aws_budgets_budget" "monthly" {

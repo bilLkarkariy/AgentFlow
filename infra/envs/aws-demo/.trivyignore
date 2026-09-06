@@ -1,0 +1,38 @@
+# Findings that cannot be silenced with an inline `trivy:ignore` comment:
+# trivy reports them against the file that declares the resource, which for
+# these five is inside .terraform/modules/eks (upstream module code we do not
+# own). Each is a deliberate, documented trade-off - see README.md and the
+# comments in eks.tf / s3.tf.
+#
+# Usage (the file is not auto-discovered when the scan target is a subdirectory):
+#   trivy config infra/envs/aws-demo --severity HIGH,CRITICAL \
+#     --ignorefile infra/envs/aws-demo/.trivyignore \
+#     --skip-dirs '**/.terraform/**'
+
+# EKS secrets are not encrypted with a customer managed KMS key.
+# A CMK is 1 USD/month plus request charges and has to be scheduled for
+# deletion on every teardown. The cluster lives ~4 h and holds no production
+# secret: the real ones stay in Secrets Manager and are projected by ESO.
+AVD-AWS-0039
+
+# The Kubernetes API endpoint is public.
+# There is no VPN, no bastion and no private subnet in this stack (a NAT
+# gateway costs more than everything else combined). `make aws-up` runs from a
+# laptop with a dynamic IP.
+AVD-AWS-0040
+
+# ... and it is open to 0.0.0.0/0 by default.
+# var.api_allowed_cidrs narrows it to a /32 for anyone who wants that; the
+# default has to stay open or the very first `aws-up` locks the operator out.
+AVD-AWS-0041
+
+# The node security group allows unrestricted egress.
+# Nodes have no NAT gateway, so they pull images from GHCR / ECR and reach the
+# EKS, STS, S3 and Secrets Manager endpoints straight over the internet gateway.
+# Restricting egress would mean VPC endpoints (0.01 USD/h each) or a NAT.
+AVD-AWS-0104
+
+# The upstream module ships example Kubernetes manifests under
+# .terraform/modules/eks/examples/. They are never applied by this stack.
+AVD-KSV-0014
+AVD-KSV-0118

@@ -1,8 +1,12 @@
 ########################################################################
 # Kiali - EKS overrides.
 #
-# Admin UIs are not published on AWS; `make aws-ui` port-forwards Kiali
-# on 20001 and Grafana on 3000, so the outbound links point at localhost.
+# Admin UIs are not published on AWS; `make aws-ui` port-forwards Kiali on
+# 20001 and Grafana on 3001, so the outbound links point at localhost.
+#
+# 3001 and not 3000: the repo's own SPA dev servers already sit on 3000, so
+# a forward on 3000 fails silently half the time. scripts/aws-ui.sh is the
+# single definition of these ports.
 ########################################################################
 
 deployment:
@@ -15,6 +19,7 @@ deployment:
 
 external_services:
   grafana:
-    external_url: http://localhost:3000
+    external_url: http://localhost:3001
   tracing:
-    external_url: http://localhost:3000/explore
+    # Traces are explored through the Grafana Tempo datasource.
+    external_url: http://localhost:3001/explore

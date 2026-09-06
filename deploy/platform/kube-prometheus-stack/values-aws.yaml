@@ -30,8 +30,10 @@ alertmanager:
 
 grafana:
   # No password in git on AWS: the Secret is created by External Secrets
-  # from Secrets Manager (agentflow/demo/app) with keys admin-user and
-  # admin-password. See deploy/platform/external-secrets (WP9).
+  # from Secrets Manager (agentflow/demo/grafana) with keys admin-user and
+  # admin-password - see deploy/platform/external-secrets/manifests/
+  # overlays/aws/externalsecret-grafana.yaml. `make aws-ui --show` reads
+  # the same entry.
   admin:
     existingSecret: agentflow-grafana-admin
     userKey: admin-user
@@ -39,5 +41,7 @@ grafana:
 
   grafana.ini:
     server:
-      root_url: http://localhost:3000
+      # `make aws-ui` forwards Grafana on 3001 (3000 is taken by the SPA
+      # dev servers); scripts/aws-ui.sh owns that number.
+      root_url: http://localhost:3001
       serve_from_sub_path: false

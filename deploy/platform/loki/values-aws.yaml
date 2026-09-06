@@ -2,19 +2,27 @@
 # Loki - EKS overrides.
 #
 # Chunks go to S3 through IRSA; nothing here holds a credential.
-# PLACEHOLDERS: the bucket name and the role ARN are filled in by
-# infra/envs/aws-demo (WP12) before this file is used for real. They are
-# left as literals so `helm template -f values-aws.yaml` stays runnable
-# in CI without AWS.
+#
+# RENDERED: the bucket name, the region and the IRSA role ARN carry the
+# account id, so scripts/aws-render-env.sh writes them from the Terraform
+# outputs `loki_bucket`, `region` and `loki_role_arn` and aws-up.sh commits
+# the result. The assignment is by yq key path, so re-provisioning into a
+# different account just overwrites them.
+#
+# The literals below are placeholders that keep
+# `helm template -f values-aws.yaml` runnable in CI without AWS.
 ########################################################################
 
 loki:
   storage:
     type: s3
     bucketNames:
+      # RENDERED - Terraform output `loki_bucket`, which is
+      # agentflow-demo-loki-<account_id>: S3 names are global.
       chunks: agentflow-demo-loki
       ruler: agentflow-demo-loki
     s3:
+      # RENDERED - Terraform output `region`.
       region: eu-west-1
       s3ForcePathStyle: false
       insecure: false
@@ -42,7 +50,8 @@ loki:
 serviceAccount:
   create: true
   annotations:
-    # PLACEHOLDER - replaced with the IRSA role created for Loki.
+    # RENDERED - Terraform output `loki_role_arn`. An IAM role ARN is an
+    # identifier, not a credential: the trust policy is what grants access.
     eks.amazonaws.com/role-arn: arn:aws:iam::000000000000:role/agentflow-demo-loki
 
 singleBinary:

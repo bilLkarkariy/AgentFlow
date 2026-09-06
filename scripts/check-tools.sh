@@ -126,6 +126,10 @@ for port in 80 443; do
 done
 
 printf '\n%s== /etc/hosts ==%s\n' "$DIM" "$RST"
+case "$DOMAIN" in
+  *sslip.io|*nip.io)
+    ok "*.${DOMAIN} resolves through public DNS, no /etc/hosts entry needed" ;;
+  *)
 if grep -q "$HOSTS_MARKER" /etc/hosts 2>/dev/null; then
   missing=()
   for svc in api studio dashboard grafana argocd kiali rollouts prometheus alertmanager; do
@@ -140,6 +144,8 @@ if grep -q "$HOSTS_MARKER" /etc/hosts 2>/dev/null; then
 else
   warn "no '${HOSTS_MARKER}' line in /etc/hosts. Run: ${REPO_ROOT}/scripts/hosts-setup.sh (asks for sudo once)"
 fi
+    ;;
+esac
 
 printf '\n'
 if [[ "$errors" -gt 0 ]]; then

@@ -47,9 +47,4 @@ locals {
   ami_type = var.node_arch == "arm64" ? "AL2023_ARM_64_STANDARD" : "AL2023_x86_64_STANDARD"
 
   secret_prefix = "agentflow/demo"
-
-  # Helm `--set` (which is how ArgoCD applies Application.spec.source.helm
-  # .parameters) splits on commas, so a list value has to arrive escaped.
-  ingress_eip_allocations_param = join("\\,", aws_eip.ingress[*].id)
-  public_subnets_param          = join("\\,", module.vpc.public_subnets)
 }

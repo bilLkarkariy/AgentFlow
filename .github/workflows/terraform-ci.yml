@@ -1,0 +1,201 @@
+########################################################################
+# Static checks for everything that provisions infrastructure. No AWS
+# credentials, no cluster, no state: `terraform init -backend=false`
+# resolves the providers and modules and stops there, which is enough to
+# catch a typo in a resource name, a renamed module input or a missing
+# variable - the three things that otherwise fail 8 minutes into an
+# `apply` that already created half a VPC.
+#
+# The shell job is here rather than in ci.yml because the AWS lifecycle
+# scripts are infrastructure too: shellcheck on scripts/, actionlint on
+# the workflows.
+########################################################################
+name: Terraform CI
+
+on:
+  push:
+    branches:
+      - main
+      - platform
+    paths:
+      - 'infra/**'
+      - '.tflint.hcl'
+      - 'scripts/aws-*.sh'
+      - 'scripts/lib/*.sh'
+      - 'mk/aws.mk'
+      - '.github/workflows/terraform-ci.yml'
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.tflint.hcl'
+      - 'scripts/aws-*.sh'
+      - 'scripts/lib/*.sh'
+      - 'mk/aws.mk'
+      - '.github/workflows/terraform-ci.yml'
+
+concurrency:
+  group: terraform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_VERSION: 1.16.0
+
+jobs:
+  fmt:
+    name: terraform fmt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # -recursive covers infra/modules too, which no `validate` job sees
+      # on its own (a module is only checked through its callers).
+      - name: terraform fmt -check -recursive
+        run: terraform fmt -check -recursive -diff infra
+
+  validate:
+    name: validate ${{ matrix.stack }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        stack:
+          - infra/bootstrap
+          - infra/envs/local
+          - infra/envs/aws-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # -backend=false: the S3 backend of aws-demo needs an account id and
+      # credentials, and neither belongs in a pull request.
+      - name: terraform init
+        run: terraform -chdir=${{ matrix.stack }} init -backend=false -input=false
+
+      - name: terraform validate
+        run: terraform -chdir=${{ matrix.stack }} validate -no-color
+
+      - name: Set up tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflint
+        run: |
+          set -euo pipefail
+          tflint --init --config "${GITHUB_WORKSPACE}/.tflint.hcl"
+          tflint --chdir=${{ matrix.stack }} \
+            --config "${GITHUB_WORKSPACE}/.tflint.hcl" \
+            --call-module-type=local \
+            --format compact
+
+  trivy-config:
+    name: trivy config
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Two passes on purpose, same as build-images.yml: the first one
+      # always publishes to the Security tab, the second one is the gate.
+      - name: Trivy config scan (SARIF)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          format: sarif
+          output: trivy-infra.sarif
+          severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: true
+          trivyignores: infra/envs/aws-demo/.trivyignore
+          skip-dirs: '**/.terraform/**'
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-infra.sarif
+          category: trivy-infra
+
+      # Every finding that stays is either fixed or written down in
+      # infra/envs/aws-demo/.trivyignore with the reason. "We know" is not
+      # a state a scanner should be left in.
+      - name: Trivy config scan (blocking)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          format: table
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          trivyignores: infra/envs/aws-demo/.trivyignore
+          skip-dirs: '**/.terraform/**'
+
+  shell:
+    name: shellcheck and actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Both tools ship with the ubuntu runner image; installing them
+      # again would only add a download to every run.
+      - name: shellcheck
+        run: |
+          set -euo pipefail
+          shellcheck --version
+          # -x follows `source scripts/lib/common.sh`, which is the whole
+          # point: a helper renamed there must break the callers here.
+          shellcheck -x scripts/*.sh scripts/lib/*.sh
+
+      - name: actionlint
+        run: |
+          set -euo pipefail
+          if ! command -v actionlint >/dev/null 2>&1; then
+            bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+            sudo mv ./actionlint /usr/local/bin/
+          fi
+          actionlint -version
+          actionlint
+
+      - name: bash -n on every script
+        run: |
+          set -euo pipefail
+          for f in scripts/*.sh scripts/lib/*.sh; do
+            bash -n "$f"
+          done
+
+      # A dry run is a real test: it walks the whole decision tree of both
+      # scripts (preflight, recovery branches, waits) without a single
+      # mutating AWS call.
+      - name: DRY_RUN aws-up and aws-down
+        env:
+          DRY_RUN: '1'
+          AWS_REGION: eu-west-1
+        run: |
+          set -euo pipefail
+          scripts/aws-up.sh -y
+          scripts/aws-down.sh -y
+          scripts/aws-check-clean.sh --dry-run

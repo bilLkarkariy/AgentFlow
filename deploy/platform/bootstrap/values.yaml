@@ -107,6 +107,13 @@ components:
     version: 1.30.4
     releaseName: istiod
     valuesDir: deploy/platform/istio/istiod
+    # istiod flips the validator from Ignore to Fail once it is ready.
+    ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        name: istio-validator-istio-system
+        jqPathExpressions:
+          - .webhooks[].failurePolicy
 
   # Only on AWS: kind runs fine with the init-container dataplane.
   - name: istio-cni

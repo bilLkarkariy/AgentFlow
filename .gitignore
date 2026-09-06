@@ -79,3 +79,7 @@ api/python/tests/__pycache__
 *.tsbuildinfo
 
 infra/envs/local/agentflow-local-config
+
+# Terraform variable files may hold account-specific values
+*.tfvars
+!*.tfvars.example

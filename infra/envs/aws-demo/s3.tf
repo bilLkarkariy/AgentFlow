@@ -29,6 +29,7 @@ resource "aws_s3_bucket_public_access_block" "loki" {
   restrict_public_buckets = true
 }
 
+# trivy:ignore:AVD-AWS-0132 SSE-S3 on purpose, see the sse_algorithm comment
 resource "aws_s3_bucket_server_side_encryption_configuration" "loki" {
   bucket = aws_s3_bucket.loki.id
 

@@ -4,6 +4,10 @@
 # Only api, studio and dashboard are published on sslip.io. Admin UIs -
 # RabbitMQ management included - are reached with `make aws-ui`
 # (kubectl port-forward), so the DLQ link points at the forwarded port.
+#
+# RENDERED: `runtimeConfig.values.API_BASE_URL` and
+# `istio.virtualService.hosts[0]` are written by
+# scripts/aws-render-env.sh from the Terraform output `ingress_domain`.
 ########################################################################
 
 image:

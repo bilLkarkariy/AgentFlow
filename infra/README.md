@@ -23,8 +23,9 @@ infra/
    gateway with no port-forward.
 3. The **ArgoCD** Helm release, configured by
    `deploy/argocd/argocd-values.yaml` + `argocd-values-local.yaml`.
-4. The root Application **`platform-root`**, rendered from
-   `root-app.yaml.tftpl` into the chart's `extraObjects`. It points at
+4. The root Application **`platform-root`**, installed as a second Helm
+   release from the tiny local chart `deploy/argocd/root-app` (Helm cannot
+   create a CR in the release that installs its CRD). It points at
    `deploy/platform/bootstrap`, which fans out into one Application per
    platform component.
 

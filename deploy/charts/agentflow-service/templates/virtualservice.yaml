@@ -19,7 +19,8 @@ spec:
     {{- end }}
   http:
     {{- with $vs.streamingPaths }}
-    # Long-lived streams (SSE, websockets): no timeout, no retry.
+    # Long-lived streams (SSE, websockets): no timeout (unset = disabled in
+    # Istio; "0s" is rejected by the CRD), no retry.
     - name: streaming
       match:
         {{- range . }}
@@ -28,7 +29,6 @@ spec:
         {{- end }}
       route:
         {{- include "agentflow-service.vsDestinations" $ | trim | nindent 8 }}
-      timeout: "0s"
       retries:
         attempts: 0
     {{- end }}
