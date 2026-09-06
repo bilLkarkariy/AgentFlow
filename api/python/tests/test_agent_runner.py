@@ -9,8 +9,8 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 @pytest.mark.skipif(
-    'OPENAI_API_KEY' not in os.environ,
-    reason='Requires OPENAI_API_KEY for real agent execution'
+    os.environ.get('OPENAI_API_KEY', '') in ('', 'dummy', 'changeme', 'test'),
+    reason='Requires a real OPENAI_API_KEY for real agent execution'
 )
 def test_agent_runner_stdout():
     script_path = os.path.abspath(
