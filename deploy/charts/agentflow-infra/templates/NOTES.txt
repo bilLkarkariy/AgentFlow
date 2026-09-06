@@ -1,0 +1,32 @@
+agentflow-infra {{ .Chart.Version }} rendered in namespace {{ .Release.Namespace }}.
+
+{{ if .Values.postgresql.cnpg.enabled -}}
+PostgreSQL (CloudNativePG)
+  Cluster   {{ .Values.postgresql.cnpg.name }} ({{ .Values.postgresql.cnpg.instances }} instance(s), {{ .Values.postgresql.cnpg.storage.size }})
+  Services  {{ .Values.postgresql.cnpg.name }}-rw / -ro / -r on 5432
+  Secret    {{ .Values.postgresql.cnpg.name }}-app -> key `uri` (POSTGRES_URL of the api)
+{{- else -}}
+PostgreSQL
+  Disabled here: the database is external (RDS). The api reads POSTGRES_URL
+  from the Secret named in deploy/envs/<env>/api.yaml.
+{{- end }}
+
+{{ if .Values.redis.enabled -}}
+Redis
+  Service   {{ .Values.redis.name }}:{{ .Values.redis.port }} (port name tcp-redis)
+{{- end }}
+
+{{ if .Values.rabbitmq.enabled -}}
+RabbitMQ
+  Service   {{ .Values.rabbitmq.name }}:{{ .Values.rabbitmq.ports.amqp }} (amqp), {{ .Values.rabbitmq.ports.management }} (management), {{ .Values.rabbitmq.ports.metrics }} (metrics)
+  Secret    {{ include "agentflow-infra.rabbitmq.secretName" . }} -> RABBITMQ_DEFAULT_USER / RABBITMQ_DEFAULT_PASS / url
+{{- if .Values.rabbitmq.definitions.enabled }}
+  DLQ       {{ .Values.rabbitmq.definitions.deadLetterQueue }} bound to {{ .Values.rabbitmq.definitions.deadLetterExchange }} (routing key {{ .Values.rabbitmq.definitions.appQueue }})
+{{- end }}
+{{- end }}
+
+{{ if .Values.appSecrets.create -}}
+Application Secrets
+  {{ .Values.appSecrets.apiSecretName }} and {{ .Values.appSecrets.workerSecretName }} created with DUMMY values.
+  Never enable this on an environment where External Secrets Operator owns the same names.
+{{- end }}

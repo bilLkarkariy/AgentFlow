@@ -1,0 +1,50 @@
+########################################################################
+# agentflow-infra - kind (local).
+#
+# Everything runs in the cluster: CloudNativePG, Redis, RabbitMQ, and the
+# two application Secrets with throwaway values.
+########################################################################
+
+postgresql:
+  cnpg:
+    enabled: true
+    # One instance on a laptop. The failover story is a talking point, not a
+    # thing to run on 16 GB of RAM.
+    instances: 1
+    storage:
+      size: 2Gi
+      # Empty means the kind default StorageClass (`standard`).
+      storageClass: ""
+
+redis:
+  persistence:
+    storageClass: ""
+
+rabbitmq:
+  auth:
+    # kind only. On AWS this Secret comes from External Secrets Operator and
+    # `auth.existingSecret` is set instead, so no password reaches Git.
+    username: agentflow
+    password: agentflow
+    vhost: /
+  persistence:
+    storageClass: ""
+  managementIngress:
+    # Target of the dashboard DLQ console link. Needs the host in
+    # /etc/hosts (scripts/hosts-setup.sh).
+    enabled: true
+    host: rabbitmq.agentflow.test
+    gateways:
+      - istio-ingress/agentflow-gateway
+
+# Local only. On AWS these two names belong to External Secrets Operator and
+# this chart must not create them, or ArgoCD reports a permanent conflict.
+appSecrets:
+  create: true
+  apiSecretName: agentflow-api-secrets
+  workerSecretName: agentflow-worker-secrets
+  data:
+    # Placeholder. A real key is seeded into namespace platform-secrets by
+    # scripts/seed-local-secrets.sh and delivered by External Secrets; it is
+    # never committed here.
+    OPENAI_API_KEY: changeme

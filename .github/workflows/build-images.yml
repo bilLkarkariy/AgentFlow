@@ -1,0 +1,403 @@
+########################################################################
+# Build, scan, sign and publish the four service images, then bump the
+# local GitOps values so ArgoCD picks the new tag up.
+#
+# --------------------------------------------------------------------
+# Why the `promote-local` commit cannot re-trigger this workflow
+# --------------------------------------------------------------------
+# Three independent guards, any one of which is enough:
+#
+#  1. The promotion commit is pushed with the default GITHUB_TOKEN, and
+#     GitHub never fires workflow events for pushes authenticated with
+#     that token. This is the hard guarantee.
+#  2. The commit message carries the `[skip ci]` marker, which GitHub
+#     honours for `push` events regardless of the token used.
+#  3. The commit only touches `deploy/envs/local/*.yaml`, and this
+#     workflow's `push` trigger has a `paths:` allow-list that contains
+#     no `deploy/**` entry. `ci.yml` additionally has `deploy/**` in its
+#     `paths-ignore`.
+#
+# `deploy-validate.yml` DOES watch `deploy/**`, so the promotion commit
+# runs the manifest validation once. That workflow has no push step, so
+# the chain terminates there.
+########################################################################
+name: Build & Publish Images
+
+on:
+  push:
+    branches:
+      - main
+      - platform
+    paths:
+      - 'api/**'
+      - 'worker/**'
+      - 'web/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - '.dockerignore'
+      - '.github/workflows/build-images.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'worker/**'
+      - 'web/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - '.dockerignore'
+      - '.github/workflows/build-images.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ------------------------------------------------------------------
+  # One build per (service, architecture). Each build pushes a bare
+  # manifest by digest; no tag is created here. The `merge` job stitches
+  # the per-arch digests into a single multi-arch index.
+  # ------------------------------------------------------------------
+  build:
+    name: build ${{ matrix.service }} (${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, worker, studio, dashboard]
+        platform:
+          - arch: amd64
+            runner: ubuntu-24.04
+            platform: linux/amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+        include:
+          # Build context is the repo root for every service except the
+          # worker, whose Dockerfile only copies files from worker/.
+          - service: api
+            context: .
+            dockerfile: api/Dockerfile
+          - service: worker
+            context: ./worker
+            dockerfile: worker/Dockerfile
+          - service: studio
+            context: .
+            dockerfile: web/studio/Dockerfile
+          - service: dashboard
+            context: .
+            dockerfile: web/dashboard/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # GHCR rejects a repository path with uppercase characters and the
+      # owner login is mixed case, hence the explicit lowering.
+      - name: Resolve image name
+        id: img
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          echo "image=${REGISTRY}/${OWNER,,}/agentflow-${SERVICE}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform.platform }}
+          outputs: type=image,name=${{ steps.img.outputs.image }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          cache-from: type=gha,scope=${{ matrix.service }}-${{ matrix.platform.arch }}
+          cache-to: type=gha,scope=${{ matrix.service }}-${{ matrix.platform.arch }},mode=max
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.title=agentflow-${{ matrix.service }}
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DIGEST" ]; then
+            echo "::error::build-push-action produced no digest"
+            exit 1
+          fi
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.service }}-${{ matrix.platform.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ------------------------------------------------------------------
+  # Turn the two per-arch digests into a tagged multi-arch index, scan
+  # it, then sign it and attach an SBOM attestation (both keyless).
+  # ------------------------------------------------------------------
+  merge:
+    name: merge & sign ${{ matrix.service }}
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      security-events: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, worker, studio, dashboard]
+    steps:
+      # Nothing here builds from source, but upload-sarif and the SBOM
+      # action both expect a workspace to anchor their results to.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Resolve image name
+        id: img
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          echo "image=${REGISTRY}/${OWNER,,}/agentflow-${SERVICE}" >> "$GITHUB_OUTPUT"
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.service }}-*
+          merge-multiple: true
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.img.outputs.image }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ steps.img.outputs.image }}
+        run: |
+          set -euo pipefail
+          refs=()
+          for digest in *; do
+            refs+=("${IMAGE}@sha256:${digest}")
+          done
+          if [ "${#refs[@]}" -eq 0 ]; then
+            echo "::error::no digest artifacts found for ${IMAGE}"
+            exit 1
+          fi
+          tag_args=()
+          while IFS= read -r tag; do
+            tag_args+=(-t "$tag")
+          done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          docker buildx imagetools create "${tag_args[@]}" "${refs[@]}"
+
+      - name: Inspect manifest list
+        env:
+          REF: ${{ steps.img.outputs.image }}:${{ steps.meta.outputs.version }}
+        run: docker buildx imagetools inspect "$REF"
+
+      - name: Resolve index digest
+        id: index
+        env:
+          REF: ${{ steps.img.outputs.image }}:${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          digest="$(docker buildx imagetools inspect "$REF" --format '{{json .Manifest}}' | jq -r '.digest')"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::could not resolve the index digest of ${REF}"
+            exit 1
+          fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      # SARIF first and non-blocking, so the Security tab is populated even
+      # when the blocking scan below fails the job.
+      - name: Trivy scan (SARIF)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.img.outputs.image }}:${{ steps.meta.outputs.version }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: true
+          ignore-unfixed: true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}
+
+      - name: Trivy scan (blocking on CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.img.outputs.image }}:${{ steps.meta.outputs.version }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the index (keyless)
+        env:
+          REF: ${{ steps.img.outputs.image }}@${{ steps.index.outputs.digest }}
+        run: cosign sign --yes "$REF"
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.img.outputs.image }}:${{ steps.meta.outputs.version }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Attest the SBOM (keyless)
+        env:
+          REF: ${{ steps.img.outputs.image }}@${{ steps.index.outputs.digest }}
+        run: cosign attest --yes --predicate sbom.spdx.json --type spdxjson "$REF"
+
+      - name: Summary
+        env:
+          IMAGE: ${{ steps.img.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          DIGEST: ${{ steps.index.outputs.digest }}
+        run: |
+          {
+            echo "### ${IMAGE}"
+            echo ""
+            echo "- tag: \`${VERSION}\`"
+            echo "- index digest: \`${DIGEST}\`"
+            echo "- signed and SBOM-attested (keyless)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # GitOps promotion. Serialised across refs (cancel-in-progress: false)
+  # so two pushes cannot race on the same files.
+  # ------------------------------------------------------------------
+  promote-local:
+    name: promote to local env
+    needs: merge
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: gitops-promote
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+
+      - name: Check yq
+        run: yq --version
+
+      - name: Bump image tags
+        id: bump
+        run: |
+          set -euo pipefail
+          short="sha-${GITHUB_SHA:0:7}"
+          echo "tag=${short}" >> "$GITHUB_OUTPUT"
+          found=0
+          for svc in api worker dashboard studio; do
+            file="deploy/envs/local/${svc}.yaml"
+            if [ ! -f "$file" ]; then
+              echo "::notice::${file} is missing, nothing to promote for ${svc}"
+              continue
+            fi
+            yq -i ".image.tag = \"${short}\"" "$file"
+            found=$(( found + 1 ))
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::warning::no deploy/envs/local values file was found; the GitOps promotion is a no-op"
+          fi
+
+      - name: Commit and push
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- deploy/envs/local; then
+            echo "::notice::deploy/envs/local already points at ${TAG}"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deploy/envs/local
+          git commit -m "chore(gitops): promote ${TAG} to local [skip ci]"
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin "$GITHUB_REF_NAME" \
+              && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "promotion pushed on attempt ${attempt}"
+              exit 0
+            fi
+            echo "::warning::push attempt ${attempt} failed, retrying"
+            sleep "$(( attempt * 5 ))"
+          done
+          echo "::error::could not push the promotion commit after 3 attempts"
+          exit 1

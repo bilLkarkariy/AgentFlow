@@ -12,7 +12,7 @@ set -euo pipefail
 DOMAIN="${DOMAIN:-agentflow.test}"
 HOSTS_FILE="${HOSTS_FILE:-/etc/hosts}"
 MARKER="# agentflow"
-SERVICES=(api studio dashboard grafana argocd kiali rollouts prometheus alertmanager)
+SERVICES=(api studio dashboard rabbitmq grafana argocd kiali rollouts prometheus alertmanager)
 
 usage() {
   cat <<EOF

@@ -1,0 +1,68 @@
+########################################################################
+# CloudNativePG operator - local.
+#
+# Wave -2: the CRDs must be registered before the agentflow-infra
+# Application (wave -1) renders a postgresql.cnpg.io/v1 Cluster.
+#
+# Chart version is pinned in deploy/versions.yaml (cloudnative_pg); the
+# drift check in `make lint-deploy` fails if the two disagree.
+#
+# ServerSideApply is not optional here: the CNPG CRDs are well over the
+# 262144 byte limit of the client-side `kubectl.kubernetes.io/last-applied-
+# configuration` annotation, so a client-side apply fails outright.
+########################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    app.kubernetes.io/part-of: agentflow
+    env: local
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: agentflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    targetRevision: 0.29.0
+    helm:
+      releaseName: cnpg
+      values: |
+        # Familiar upstream object names (cnpg-controller-manager), instead
+        # of the release-derived cnpg-cloudnative-pg.
+        fullnameOverride: cnpg-controller-manager
+        crds:
+          create: true
+        monitoring:
+          # Annotation-based scraping; no Prometheus Operator objects.
+          podMonitorEnabled: false
+          grafanaDashboard:
+            create: false
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

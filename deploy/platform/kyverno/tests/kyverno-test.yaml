@@ -1,0 +1,96 @@
+########################################################################
+# Offline policy regression suite.
+#
+#   kyverno test deploy/platform/kyverno/tests
+#
+# Also run by scripts/verify-security.sh and by the deploy-validate
+# workflow (WP6). The policies are read from policies/base, so the suite
+# checks the shared definitions; the only per-environment difference is
+# the failureAction of verify-image-signatures, which the overlays patch.
+#
+# verify-image-signatures is deliberately absent: it needs live calls to
+# ghcr.io, Fulcio and Rekor, which would make this suite fail on a plane.
+########################################################################
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: agentflow-security-policies
+policies:
+  - ../policies/base/require-resource-limits.yaml
+  - ../policies/base/disallow-latest-tag.yaml
+  - ../policies/base/require-run-as-nonroot.yaml
+resources:
+  - resources/good-api-pod.yaml
+  - resources/bad-latest.yaml
+  - resources/bad-no-limits.yaml
+  - resources/bad-root.yaml
+results:
+  # --- the compliant, mesh-injected api pod passes everything ----------
+  - policy: require-resource-limits
+    rule: require-memory-limit-and-cpu-request
+    kind: Pod
+    resources:
+      - agentflow-api-good
+    result: pass
+  - policy: disallow-latest-tag
+    rule: require-image-tag
+    kind: Pod
+    resources:
+      - agentflow-api-good
+    result: pass
+  - policy: disallow-latest-tag
+    rule: validate-image-tag
+    kind: Pod
+    resources:
+      - agentflow-api-good
+    result: pass
+  - policy: require-run-as-nonroot
+    rule: containers-run-as-nonroot
+    kind: Pod
+    resources:
+      - agentflow-api-good
+    result: pass
+  # istio-init is the only init container, so the rule is skipped by its
+  # precondition rather than evaluated.
+  - policy: require-run-as-nonroot
+    rule: init-containers-run-as-nonroot
+    kind: Pod
+    resources:
+      - agentflow-api-good
+    result: skip
+
+  # --- latest / untagged images ---------------------------------------
+  - policy: disallow-latest-tag
+    rule: validate-image-tag
+    kind: Pod
+    resources:
+      - bad-latest
+    result: fail
+  - policy: disallow-latest-tag
+    rule: require-image-tag
+    kind: Pod
+    resources:
+      - bad-no-tag
+    result: fail
+
+  # --- missing memory limit -------------------------------------------
+  - policy: require-resource-limits
+    rule: require-memory-limit-and-cpu-request
+    kind: Pod
+    resources:
+      - bad-no-limits
+    result: fail
+
+  # --- root ------------------------------------------------------------
+  - policy: require-run-as-nonroot
+    rule: containers-run-as-nonroot
+    kind: Pod
+    resources:
+      - bad-root
+    result: fail
+  - policy: require-run-as-nonroot
+    rule: init-containers-run-as-nonroot
+    kind: Pod
+    resources:
+      - bad-root-init
+    result: fail

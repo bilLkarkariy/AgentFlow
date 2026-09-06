@@ -1,0 +1,11 @@
+########################################################################
+# agentflow-worker - EKS (aws).
+# The HPA owns the replica count in both environments; only the tag and the
+# environment label differ.
+########################################################################
+
+image:
+  tag: sha-0000000
+
+config:
+  DEPLOY_ENV: aws

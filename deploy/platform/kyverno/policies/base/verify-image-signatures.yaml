@@ -1,0 +1,71 @@
+########################################################################
+# AgentFlow images must carry a valid keyless cosign signature produced by
+# this repository's GitHub Actions workflows.
+#
+# The CI job (.github/workflows/build-images.yml, WP6) signs each digest
+# with `cosign sign --yes` using the workflow's OIDC token. The resulting
+# certificate has:
+#   issuer  = https://token.actions.githubusercontent.com
+#   subject = https://github.com/bilLkarkariy/AgentFlow/.github/workflows/<file>@<ref>
+# hence `subjectRegExp` rather than a literal `subject`.
+#
+# `mutateDigest: true` rewrites the tag to the verified digest, so what is
+# admitted is exactly what was verified (no tag-swap race between the
+# admission check and the kubelet pull).
+#
+# Per environment (the overlays patch both fields together, because
+# Kyverno refuses `mutateDigest: true` with an `Audit` failureAction - an
+# audit rule must not rewrite the resource it only observes):
+#   overlays/local -> Audit   + mutateDigest false (kind has no guaranteed
+#                              egress to Fulcio/Rekor, and side-loaded
+#                              images are unsigned)
+#   overlays/aws   -> Enforce + mutateDigest true  (the real gate)
+########################################################################
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify image signatures
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      AgentFlow images must be signed keyless by a GitHub Actions workflow
+      of bilLkarkariy/AgentFlow and recorded in the public Rekor log.
+spec:
+  # Signature verification needs an egress call to the registry, Fulcio and
+  # Rekor. Doing that on every background reconcile of every pod is a lot of
+  # network traffic for no extra safety - admission is the gate that matters.
+  background: false
+  # A registry hiccup must not block a deployment of a *different* image; the
+  # rule only ever matches ghcr.io/billkarkariy/agentflow-*.
+  failurePolicy: Fail
+  rules:
+    - name: verify-agentflow-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - agentflow
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/billkarkariy/agentflow-*"
+          type: Cosign
+          failureAction: Enforce
+          # Rewrite tag -> verified digest on admission.
+          mutateDigest: true
+          verifyDigest: false
+          # An image matching imageReferences that has no signature is a
+          # failure, not a skip.
+          required: true
+          attestors:
+            - count: 1
+              entries:
+                - keyless:
+                    issuer: https://token.actions.githubusercontent.com
+                    subjectRegExp: "https://github.com/bilLkarkariy/AgentFlow/.github/workflows/.+"
+                    rekor:
+                      url: https://rekor.sigstore.dev

@@ -1,0 +1,12 @@
+########################################################################
+# Kiali - kind / OrbStack overrides.
+#
+# Published at https://kiali.agentflow.test through the Istio gateway
+# (deploy/platform/istio/config/overlays/local/virtualservices.yaml).
+########################################################################
+
+external_services:
+  grafana:
+    external_url: https://grafana.agentflow.test
+  tracing:
+    external_url: https://grafana.agentflow.test/explore

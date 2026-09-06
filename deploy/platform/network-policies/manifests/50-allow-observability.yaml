@@ -1,0 +1,47 @@
+########################################################################
+# Observability.
+#
+# Egress 4317 / 4318 -> the OTel collector in namespace observability.
+#   4318 is OTLP/HTTP, used by the API's NodeSDK
+#   (OTEL_EXPORTER_OTLP_ENDPOINT, plan section 5); 4317 is OTLP/gRPC, used
+#   by the Istio sidecars through the `otel-tracing` extension provider.
+#   The rule targets the whole namespace rather than the collector's pod
+#   labels: those labels belong to WP8's chart values, and a silent
+#   relabelling there would turn into "traces stopped arriving" here.
+#
+# Ingress from observability on any port -> Prometheus scraping.
+#   In mesh mode there is no ServiceMonitor; Prometheus discovers pods by
+#   their prometheus.io/* annotations, so the port differs per workload
+#   (3000 for the api, 9100 for the worker, 9187 for CNPG, 15692 for
+#   RabbitMQ). Enumerating them here would break every time a component
+#   moves its metrics port, so the port list is deliberately open and the
+#   source is pinned instead.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-observability
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability

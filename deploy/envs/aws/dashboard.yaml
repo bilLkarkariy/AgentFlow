@@ -1,0 +1,22 @@
+########################################################################
+# agentflow-dashboard - EKS (aws).
+#
+# Only api, studio and dashboard are published on sslip.io. Admin UIs -
+# RabbitMQ management included - are reached with `make aws-ui`
+# (kubectl port-forward), so the DLQ link points at the forwarded port.
+########################################################################
+
+image:
+  tag: sha-0000000
+
+replicaCount: 2
+
+runtimeConfig:
+  values:
+    API_BASE_URL: https://api.DOMAIN_PLACEHOLDER
+    RABBITMQ_MGMT_URL: http://localhost:15672
+
+istio:
+  virtualService:
+    hosts:
+      - dashboard.DOMAIN_PLACEHOLDER

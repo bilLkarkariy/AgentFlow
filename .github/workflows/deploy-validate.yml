@@ -1,0 +1,337 @@
+########################################################################
+# Static validation of everything under deploy/. No cluster is involved:
+# charts are rendered, kustomize overlays are built, and the result is
+# schema-checked against the upstream Kubernetes schemas plus the datree
+# CRDs catalogue. Prometheus rules, Kyverno policies and the Istio
+# configuration get their own native linters.
+#
+# This is the workflow that the `promote-local` GitOps commit triggers
+# (it touches deploy/envs/local/*.yaml). It pushes nothing, so the chain
+# stops here.
+########################################################################
+name: Deploy Validation
+
+on:
+  push:
+    branches:
+      - main
+      - platform
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/deploy-validate.yml'
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/deploy-validate.yml'
+
+concurrency:
+  group: deploy-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  HELM_VERSION: v4.2.4
+  KUBECONFORM_VERSION: v0.8.0
+  KUSTOMIZE_VERSION: v5.8.1
+  PROMETHEUS_VERSION: v3.14.0
+  KYVERNO_VERSION: v1.19.0
+
+jobs:
+  helm:
+    name: helm, kustomize and kubeconform
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install kubeconform and kustomize
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+          curl -sSfL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin kustomize
+          kubeconform -v
+          kustomize version
+          helm version --short
+
+      # Single wrapper so every call below uses the exact same schema set:
+      # upstream Kubernetes schemas plus the datree CRDs catalogue for the
+      # Istio / ArgoCD / Rollouts / CNPG custom resources.
+      - name: Write the kubeconform wrapper
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/kc" <<'WRAPPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec kubeconform \
+            -strict \
+            -summary \
+            -skip CustomResourceDefinition \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            "$@"
+          WRAPPER
+          chmod +x "${RUNNER_TEMP}/kc"
+
+      - name: Helm lint
+        run: |
+          set -euo pipefail
+          linted=0
+          for chart in deploy/charts/agentflow-service deploy/charts/agentflow-infra; do
+            if [ ! -d "$chart" ]; then
+              echo "::notice::${chart} does not exist yet, skipping helm lint"
+              continue
+            fi
+            if compgen -G "${chart}/ci/*.yaml" > /dev/null; then
+              for values in "${chart}"/ci/*.yaml; do
+                echo "--- helm lint ${chart} -f ${values}"
+                helm lint "$chart" -f "$values"
+                linted=$(( linted + 1 ))
+              done
+            else
+              echo "--- helm lint ${chart} (no ci/ values)"
+              helm lint "$chart"
+              linted=$(( linted + 1 ))
+            fi
+          done
+          if [ "$linted" -eq 0 ]; then
+            echo "::warning::no chart was linted; deploy/charts is empty"
+          fi
+
+      - name: Render the service chart for every env
+        run: |
+          set -euo pipefail
+          chart=deploy/charts/agentflow-service
+          if [ ! -d "$chart" ]; then
+            echo "::notice::${chart} does not exist yet, skipping"
+            exit 0
+          fi
+          rendered=0
+          for env_name in local aws; do
+            for svc in api worker dashboard studio; do
+              env_values="deploy/envs/${env_name}/${svc}.yaml"
+              if [ ! -f "$env_values" ]; then
+                echo "::notice::${env_values} is missing, skipping"
+                continue
+              fi
+              args=()
+              base_values="deploy/envs/base/${svc}.yaml"
+              [ -f "$base_values" ] && args+=(-f "$base_values")
+              args+=(-f "$env_values")
+              echo "--- ${svc} @ ${env_name}"
+              helm template "agentflow-${svc}" "$chart" --namespace agentflow "${args[@]}" \
+                | "${RUNNER_TEMP}/kc" -
+              rendered=$(( rendered + 1 ))
+            done
+          done
+          if [ "$rendered" -eq 0 ]; then
+            echo "::warning::deploy/envs/{local,aws} holds no service values yet (WP5)"
+          fi
+
+      - name: Render the infra chart for every env
+        run: |
+          set -euo pipefail
+          chart=deploy/charts/agentflow-infra
+          if [ ! -d "$chart" ]; then
+            echo "::notice::${chart} does not exist yet, skipping"
+            exit 0
+          fi
+          for env_name in local aws; do
+            args=()
+            for candidate in "deploy/envs/${env_name}/infra.yaml" "${chart}/values-${env_name}.yaml"; do
+              [ -f "$candidate" ] && args+=(-f "$candidate")
+            done
+            echo "--- agentflow-infra @ ${env_name}"
+            helm template agentflow-infra "$chart" --namespace agentflow "${args[@]}" \
+              | "${RUNNER_TEMP}/kc" -
+          done
+
+      - name: Render the bootstrap chart for every env
+        run: |
+          set -euo pipefail
+          chart=deploy/platform/bootstrap
+          if [ ! -d "$chart" ]; then
+            echo "::notice::${chart} does not exist yet, skipping"
+            exit 0
+          fi
+          for env_name in local aws; do
+            env_values="${chart}/values-${env_name}.yaml"
+            if [ ! -f "$env_values" ]; then
+              echo "::notice::${env_values} is missing, skipping"
+              continue
+            fi
+            echo "--- bootstrap @ ${env_name}"
+            helm template platform-root "$chart" --namespace argocd \
+              -f "${chart}/values.yaml" -f "$env_values" \
+              | "${RUNNER_TEMP}/kc" -
+          done
+
+      - name: Validate the ArgoCD Applications
+        run: |
+          set -euo pipefail
+          if ! compgen -G 'deploy/argocd/envs/*/*.yaml' > /dev/null; then
+            echo "::notice::deploy/argocd/envs is empty (WP5), skipping"
+            exit 0
+          fi
+          "${RUNNER_TEMP}/kc" deploy/argocd/envs/*/*.yaml
+
+      - name: Build and validate every kustomize overlay
+        run: |
+          set -euo pipefail
+          overlays=(
+            deploy/platform/cert-manager/manifests
+            deploy/platform/istio/config
+            deploy/platform/monitoring-config
+            deploy/platform/kyverno/policies
+            deploy/platform/external-secrets/manifests
+          )
+          built=0
+          for root in "${overlays[@]}"; do
+            for env_name in local aws; do
+              overlay="${root}/overlays/${env_name}"
+              if [ ! -d "$overlay" ]; then
+                echo "::notice::${overlay} does not exist yet, skipping"
+                continue
+              fi
+              # A directory without a kustomization file is a work package
+              # still in flight, not a regression: warn loudly, do not fail.
+              if [ ! -f "${overlay}/kustomization.yaml" ] && [ ! -f "${overlay}/kustomization.yml" ]; then
+                echo "::warning::${overlay} has no kustomization.yaml, skipping"
+                continue
+              fi
+              echo "--- kustomize build ${overlay}"
+              kustomize build "$overlay" | "${RUNNER_TEMP}/kc" -
+              built=$(( built + 1 ))
+            done
+          done
+          if [ "$built" -eq 0 ]; then
+            echo "::warning::no kustomize overlay was validated"
+          fi
+
+  prometheus-rules:
+    name: promtool
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install promtool
+        run: |
+          set -euo pipefail
+          version="${PROMETHEUS_VERSION#v}"
+          curl -sSfL "https://github.com/prometheus/prometheus/releases/download/${PROMETHEUS_VERSION}/prometheus-${version}.linux-amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" "prometheus-${version}.linux-amd64/promtool"
+          sudo install -m 0755 "${RUNNER_TEMP}/prometheus-${version}.linux-amd64/promtool" /usr/local/bin/promtool
+          promtool --version
+
+      - name: Check the PrometheusRule expressions
+        run: |
+          set -euo pipefail
+          if [ ! -x scripts/check-rules.sh ]; then
+            echo "::notice::scripts/check-rules.sh does not exist yet (WP8), skipping"
+            exit 0
+          fi
+          ./scripts/check-rules.sh
+
+  kyverno:
+    name: kyverno policies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install the Kyverno CLI
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}/kyverno-cli_${KYVERNO_VERSION}_linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin kyverno
+          kyverno version
+
+      - name: Run the policy tests
+        run: |
+          set -euo pipefail
+          policies=deploy/platform/kyverno/policies/base
+          tests=deploy/platform/kyverno/tests
+          if [ ! -d "$policies" ]; then
+            echo "::notice::${policies} does not exist yet (WP9), skipping"
+            exit 0
+          fi
+          if [ ! -d "$tests" ]; then
+            echo "::warning::${policies} exists but ${tests} does not; only parsing the policies"
+            kyverno apply "$policies" --policy-report
+            exit 0
+          fi
+          # `kyverno test` when the fixtures declare their expectations,
+          # otherwise the plain resource-driven `kyverno apply`.
+          if find "$tests" -name 'kyverno-test.yaml' | grep -q .; then
+            kyverno test "$tests"
+          else
+            kyverno apply "$policies" -r "$tests"
+          fi
+
+  istio:
+    name: istioctl analyze
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin kustomize
+
+      # istioctl is pinned to the very version the platform installs, read
+      # straight from deploy/versions.yaml so the two never drift.
+      - name: Install istioctl
+        run: |
+          set -euo pipefail
+          version="$(yq -r '.istio.version' deploy/versions.yaml)"
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::error::deploy/versions.yaml has no .istio.version"
+            exit 1
+          fi
+          echo "installing istioctl ${version}"
+          curl -sSfL "https://github.com/istio/istio/releases/download/${version}/istioctl-${version}-linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin istioctl
+          istioctl version --remote=false
+
+      # `--use-kube=false` is the file-only mode. The flag was spelled
+      # `--use-kubernetes` on very old istioctl builds; every version we pin
+      # uses `--use-kube`. Files are positional arguments, there is no -f.
+      - name: Analyze the Istio configuration
+        run: |
+          set -euo pipefail
+          analyzed=0
+          for env_name in local aws; do
+            overlay="deploy/platform/istio/config/overlays/${env_name}"
+            if [ ! -d "$overlay" ]; then
+              echo "::notice::${overlay} does not exist yet, skipping"
+              continue
+            fi
+            if [ ! -f "${overlay}/kustomization.yaml" ] && [ ! -f "${overlay}/kustomization.yml" ]; then
+              echo "::warning::${overlay} has no kustomization.yaml, skipping"
+              continue
+            fi
+            out="${RUNNER_TEMP}/istio-${env_name}.yaml"
+            kustomize build "$overlay" > "$out"
+            echo "--- istioctl analyze ${overlay}"
+            istioctl analyze --use-kube=false "$out"
+            analyzed=$(( analyzed + 1 ))
+          done
+          if [ "$analyzed" -eq 0 ]; then
+            echo "::warning::no Istio overlay was analyzed"
+          fi

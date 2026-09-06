@@ -1,0 +1,173 @@
+########################################################################
+# Grafana Alloy - log shipper (wave 10).
+# Chart: grafana/alloy 1.12.1 (Alloy v1.19.x), see deploy/versions.yaml.
+#
+# One DaemonSet pod per node tails the containers of that node through the
+# Kubernetes API and pushes to Loki. Labels are kept deliberately small
+# (namespace, pod, container, app, version, node, level): everything else,
+# trace_id included, stays inside the log line so Grafana's derived field
+# can link a line to its Tempo trace.
+########################################################################
+
+# monitoring.grafana.com CRDs (PodLogs) are unused: log targets come from
+# discovery.kubernetes, not from custom resources.
+crds:
+  create: false
+
+controller:
+  type: daemonset
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "12345"
+    prometheus.io/path: /metrics
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+
+alloy:
+  enableReporting: false
+  stabilityLevel: generally-available
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  # Used by the discovery.kubernetes field selector below so that each
+  # DaemonSet pod only tails its own node; without it every pod would
+  # tail every container and Loki would receive N copies of each line.
+  extraEnv:
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+
+  mounts:
+    # Logs are read through the Kubernetes API, not from the host.
+    varlog: false
+    dockercontainers: false
+
+  configMap:
+    create: true
+    ######################################################################
+    # The chart runs this string through Helm's `tpl`, and the pipeline
+    # below uses Go templates of its own. The surrounding {{` ... `}} is a
+    # Helm raw block: everything between the backticks reaches the
+    # ConfigMap untouched.
+    ######################################################################
+    content: |-
+      {{`
+      // ------------------------------------------------------------------
+      // Discovery: pods of this node only.
+      // ------------------------------------------------------------------
+      discovery.kubernetes "pods" {
+        role = "pod"
+
+        selectors {
+          role  = "pod"
+          field = "spec.nodeName=" + sys.env("NODE_NAME")
+        }
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        // A pod with no container has nothing to tail.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          regex         = ".+"
+          action        = "keep"
+        }
+
+        // Finished pods: their logs are already in Loki.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Succeeded|Failed"
+          action        = "drop"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        // app / version are set on every AgentFlow pod by the
+        // agentflow-service chart (plan section 5).
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_version"]
+          target_label  = "version"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.agentflow.receiver]
+      }
+
+      // ------------------------------------------------------------------
+      // Processing: turn the JSON "level" field into a label, nothing else.
+      // trace_id and span_id stay in the line; Grafana's Loki datasource
+      // turns them into a link to Tempo (derivedFields).
+      // ------------------------------------------------------------------
+      loki.process "agentflow" {
+        forward_to = [loki.write.default.receiver]
+
+        stage.json {
+          expressions = {
+            level     = "level",
+            levelname = "levelname",
+          }
+        }
+
+        // api (pino) writes "level"; the Python logging JSON formatter
+        // writes "levelname". Take whichever is there, lower-cased.
+        stage.template {
+          source   = "level"
+          template = "{{ if .level }}{{ ToLower .level }}{{ else if .levelname }}{{ ToLower .levelname }}{{ else }}unknown{{ end }}"
+        }
+
+        // pino emits numeric levels unless a formatter maps them.
+        stage.template {
+          source   = "level"
+          template = "{{ if eq .Value \"10\" }}trace{{ else if eq .Value \"20\" }}debug{{ else if eq .Value \"30\" }}info{{ else if eq .Value \"40\" }}warn{{ else if eq .Value \"50\" }}error{{ else if eq .Value \"60\" }}fatal{{ else }}{{ .Value }}{{ end }}"
+        }
+
+        stage.labels {
+          values = {
+            level = "level",
+          }
+        }
+
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+      `}}

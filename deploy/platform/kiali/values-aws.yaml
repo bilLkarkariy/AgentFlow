@@ -1,0 +1,20 @@
+########################################################################
+# Kiali - EKS overrides.
+#
+# Admin UIs are not published on AWS; `make aws-ui` port-forwards Kiali
+# on 20001 and Grafana on 3000, so the outbound links point at localhost.
+########################################################################
+
+deployment:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+
+external_services:
+  grafana:
+    external_url: http://localhost:3000
+  tracing:
+    external_url: http://localhost:3000/explore

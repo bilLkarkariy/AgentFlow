@@ -1,0 +1,76 @@
+########################################################################
+# What a mesh-injected agentflow-api pod actually looks like once the
+# sidecar injector is done with it: an explicit image tag, a memory limit
+# and a CPU request, runAsNonRoot on the pod, and the root `istio-init`
+# init container that require-run-as-nonroot must let through.
+########################################################################
+apiVersion: v1
+kind: Pod
+metadata:
+  name: agentflow-api-good
+  namespace: agentflow
+  labels:
+    app: api
+    version: sha-abc1234
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    fsGroup: 10001
+  initContainers:
+    - name: istio-init
+      image: docker.io/istio/proxyv2:1.30.4
+      args:
+        - istio-iptables
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        runAsNonRoot: false
+        capabilities:
+          add:
+            - NET_ADMIN
+            - NET_RAW
+          drop:
+            - ALL
+      resources:
+        limits:
+          cpu: 200m
+          memory: 128Mi
+        requests:
+          cpu: 10m
+          memory: 40Mi
+  containers:
+    - name: api
+      image: ghcr.io/billkarkariy/agentflow-api:sha-abc1234
+      ports:
+        - name: http
+          containerPort: 3000
+      securityContext:
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        limits:
+          memory: 768Mi
+        requests:
+          cpu: 100m
+          memory: 384Mi
+    - name: istio-proxy
+      image: docker.io/istio/proxyv2:1.30.4
+      securityContext:
+        runAsUser: 1337
+        runAsGroup: 1337
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        limits:
+          memory: 1Gi
+        requests:
+          cpu: 10m
+          memory: 128Mi

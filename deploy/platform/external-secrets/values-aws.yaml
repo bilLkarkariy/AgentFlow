@@ -1,0 +1,24 @@
+########################################################################
+# External Secrets Operator - EKS overrides.
+#
+# The controller assumes the `agentflow-demo-eso` IAM role through IRSA
+# and reads AWS Secrets Manager (agentflow/demo/{app,db,ca}).
+#
+# PLACEHOLDER_ESO_ROLE_ARN is substituted by the AWS bootstrap (the
+# Terraform output `eso_role_arn`, plan section 5) before this file is
+# committed for the aws environment. Nothing secret ever lands here: an
+# IAM role ARN is not a credential, and the trust policy is what grants
+# access.
+########################################################################
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: PLACEHOLDER_ESO_ROLE_ARN
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    memory: 256Mi

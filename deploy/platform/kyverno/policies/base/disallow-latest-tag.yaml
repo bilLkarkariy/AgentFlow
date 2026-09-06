@@ -1,0 +1,63 @@
+########################################################################
+# Images must be pinned to an explicit tag, and that tag must not be
+# `latest`.
+#
+# The whole GitOps chain depends on this: CI bumps `image.tag` to
+# `sha-<7>` in deploy/envs/<env>, ArgoCD syncs, Argo Rollouts compares
+# stable vs canary. A `latest` tag makes the desired state unknowable and
+# a rollback meaningless.
+#
+# initContainers are covered too: the Istio sidecar injector always
+# renders `istio-init` and `istio-proxy` with the explicit istiod tag
+# (1.30.4), so mesh-injected pods pass without an exception.
+########################################################################
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow latest tag
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Images in the agentflow namespace must carry an explicit tag that is
+      not `latest`.
+spec:
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - agentflow
+      validate:
+        failureAction: Enforce
+        message: An image tag is required (image must be <repository>:<tag>).
+        pattern:
+          spec:
+            =(initContainers):
+              - image: "*:*"
+            containers:
+              - image: "*:*"
+
+    - name: validate-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - agentflow
+      validate:
+        failureAction: Enforce
+        message: Using the `latest` tag is not allowed.
+        pattern:
+          spec:
+            =(initContainers):
+              - image: "!*:latest"
+            containers:
+              - image: "!*:latest"

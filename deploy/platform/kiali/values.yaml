@@ -1,0 +1,71 @@
+########################################################################
+# Kiali - service mesh console (wave 12, namespace istio-system).
+# Chart: kiali/kiali-server 2.31.0, see deploy/versions.yaml.
+#
+# Almost every value in this file is copied verbatim into the Kiali
+# ConfigMap by the chart, so the key names are Kiali's, not Helm's.
+########################################################################
+
+# Demo cluster with no identity provider in front of it. The mesh is
+# read/write from the UI so the canary demo can be driven from Kiali.
+auth:
+  strategy: anonymous
+
+istio_namespace: istio-system
+
+deployment:
+  view_only_mode: false
+  cluster_wide_access: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  logger:
+    log_level: info
+    log_format: text
+  # The chart already annotates the pod with prometheus.io/scrape,
+  # prometheus.io/port: 9090 and prometheus.io/scheme, which is exactly
+  # what the annotated-pods ScrapeConfig looks for.
+  # The Istio Gateway terminates TLS and forwards plain HTTP; Kiali must
+  # not also try to serve TLS.
+  ingress:
+    enabled: false
+
+server:
+  port: 20001
+  # Served at the root of kiali.agentflow.test, not under /kiali.
+  web_root: /
+
+external_services:
+  prometheus:
+    enabled: true
+    url: http://kube-prometheus-stack-prometheus.observability:9090
+
+  grafana:
+    enabled: true
+    # Server-to-server call (dashboard discovery).
+    internal_url: http://kube-prometheus-stack-grafana.observability
+    # Overridden per environment: this is the link the browser follows.
+    external_url: http://localhost:3000
+
+  tracing:
+    enabled: true
+    provider: tempo
+    internal_url: http://tempo.observability:3200
+    # Tempo's HTTP API, not the gRPC one.
+    use_grpc: false
+    external_url: http://localhost:3000/explore
+    tempo_config:
+      org_id: "1"
+      # Must match the Grafana datasource uid set in
+      # deploy/platform/kube-prometheus-stack/values.yaml.
+      datasource_uid: tempo
+
+  custom_dashboards:
+    enabled: true
+
+kiali_feature_flags:
+  disabled_features: []

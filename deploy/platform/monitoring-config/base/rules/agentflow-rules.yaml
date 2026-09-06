@@ -1,0 +1,140 @@
+########################################################################
+# AgentFlow recording and alerting rules.
+#
+# Picked up by Prometheus because prometheusSpec.ruleSelectorNilUsesHelm-
+# Values is false (deploy/platform/kube-prometheus-stack/values.yaml), so
+# no release label is needed here.
+#
+# The RED rules read Istio telemetry from the destination sidecar rather
+# than the api's own metrics: it is the same view the canary
+# AnalysisTemplate uses, so an alert and a rollback never disagree.
+#
+# Alertmanager routes everything to the `null` receiver: these alerts are
+# a demo of the signal, not of paging.
+########################################################################
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: agentflow-rules
+  labels:
+    app.kubernetes.io/part-of: agentflow
+spec:
+  groups:
+    ####################################################################
+    - name: agentflow.recording
+      interval: 30s
+      rules:
+        - record: agentflow:api_request_rate:5m
+          expr: |
+            sum(rate(istio_requests_total{reporter="destination",destination_workload="agentflow-api"}[5m]))
+
+        - record: agentflow:api_error_ratio:5m
+          expr: |
+            sum(rate(istio_requests_total{reporter="destination",destination_workload="agentflow-api",response_code=~"5.."}[5m]))
+              /
+            sum(rate(istio_requests_total{reporter="destination",destination_workload="agentflow-api"}[5m]))
+
+        - record: agentflow:api_p95_ms:5m
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (rate(istio_request_duration_milliseconds_bucket{reporter="destination",destination_workload="agentflow-api"}[5m]))
+            )
+
+    ####################################################################
+    - name: agentflow.alerts
+      rules:
+        - alert: AgentFlowHighDailyLlmCost
+          expr: |
+            sum(increase(agentflow_llm_cost_usd_total[24h])) > 5
+          for: 1h
+          labels:
+            severity: critical
+            service: api
+          annotations:
+            summary: LLM spend above 5 USD over 24h
+            description: >-
+              AgentFlow has spent {{ printf "%.2f" $value }} USD on model calls in the
+              last 24 hours. Check the agentflow-llm-costs dashboard for the model
+              breakdown; a runaway agent loop is the usual cause.
+
+        - alert: AgentFlowAgentRunFailureRatio
+          expr: |
+            sum(rate(agentflow_agent_runs_total{status!="success"}[10m]))
+              /
+            sum(rate(agentflow_agent_runs_total[10m]))
+              > 0.2
+          for: 10m
+          labels:
+            severity: warning
+            service: api
+          annotations:
+            summary: More than 20% of agent runs are failing
+            description: >-
+              {{ $value | humanizePercentage }} of agent runs ended in failure,
+              timeout or circuit_open over the last 10 minutes.
+
+        - alert: AgentFlowQueueBacklog
+          expr: |
+            sum by (queue) (agentflow_queue_depth{state="waiting"}) > 100
+          for: 10m
+          labels:
+            severity: warning
+            service: api
+          annotations:
+            summary: Queue {{ $labels.queue }} is backing up
+            description: >-
+              {{ $value }} jobs have been waiting on queue {{ $labels.queue }} for more
+              than 10 minutes. Either the workers are down or they cannot keep up.
+
+        - alert: AgentFlowApiHighErrorRate
+          expr: |
+            agentflow:api_error_ratio:5m > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            service: api
+          annotations:
+            summary: api is serving more than 5% 5xx
+            description: >-
+              {{ $value | humanizePercentage }} of requests reaching agentflow-api
+              returned a 5xx over the last 5 minutes.
+
+        - alert: AgentFlowApiHighLatency
+          expr: |
+            agentflow:api_p95_ms:5m > 1000
+          for: 10m
+          labels:
+            severity: warning
+            service: api
+          annotations:
+            summary: api p95 latency above 1s
+            description: >-
+              The 95th percentile of agentflow-api request duration is
+              {{ printf "%.0f" $value }} ms.
+
+        - alert: AgentFlowPythonRunnerCircuitOpen
+          expr: |
+            max(agentflow_python_runner_circuit_state) > 0
+          for: 5m
+          labels:
+            severity: critical
+            service: api
+          annotations:
+            summary: Python runner circuit breaker is open
+            description: >-
+              The api has stopped sending work to the Python runner. Agent runs are
+              returning status=circuit_open until it closes again.
+
+        - alert: AgentFlowWorkerDown
+          expr: |
+            max(agentflow_worker_up) == 0 or absent(agentflow_worker_up)
+          for: 10m
+          labels:
+            severity: critical
+            service: worker
+          annotations:
+            summary: No AgentFlow worker is reporting up
+            description: >-
+              agentflow_worker_up has been 0 (or missing entirely) for 10 minutes.
+              Queued Celery tasks are not being consumed.

@@ -1,0 +1,20 @@
+########################################################################
+# agentflow-studio - kind (local).
+#
+# The SPA runs in the browser, so API_BASE_URL is the public host served by
+# the Istio gateway, not the in-cluster Service name.
+########################################################################
+
+image:
+  tag: sha-0000000
+
+replicaCount: 1
+
+runtimeConfig:
+  values:
+    API_BASE_URL: https://api.agentflow.test
+
+istio:
+  virtualService:
+    hosts:
+      - studio.agentflow.test

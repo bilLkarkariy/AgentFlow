@@ -1,0 +1,22 @@
+########################################################################
+# agentflow-dashboard - kind (local).
+#
+# RABBITMQ_MGMT_URL is a link the browser follows, so it needs the host
+# published by deploy/charts/agentflow-infra
+# (rabbitmq.managementIngress in deploy/envs/local/infra.yaml).
+########################################################################
+
+image:
+  tag: sha-0000000
+
+replicaCount: 1
+
+runtimeConfig:
+  values:
+    API_BASE_URL: https://api.agentflow.test
+    RABBITMQ_MGMT_URL: https://rabbitmq.agentflow.test
+
+istio:
+  virtualService:
+    hosts:
+      - dashboard.agentflow.test

@@ -1,0 +1,60 @@
+########################################################################
+# agentflow-infra - EKS (aws).
+#
+# Postgres is RDS here, not CloudNativePG: a managed database is the honest
+# production choice, and the CNPG path stays one flag away for the demo
+# (see docs/adr/0003). Redis and RabbitMQ stay in-cluster in both
+# environments.
+########################################################################
+
+postgresql:
+  cnpg:
+    # RDS db.t4g.micro provides Postgres; the api reads POSTGRES_URL from the
+    # Secret `agentflow-db` projected by External Secrets Operator.
+    enabled: false
+    # Kept accurate so that flipping `enabled` to true gives a production
+    # shaped cluster rather than the laptop one.
+    instances: 2
+    storage:
+      size: 2Gi
+      storageClass: gp3
+    backup:
+      # Needs a real bucket and the IRSA annotation below before it is
+      # switched on; the placeholder is refused by `make lint-deploy` only
+      # when enabled is true.
+      enabled: false
+      destinationPath: s3://BUCKET_PLACEHOLDER/agentflow-db
+      s3Credentials:
+        inheritFromIAMRole: true
+      retentionPolicy: 7d
+    serviceAccountAnnotations: {}
+
+redis:
+  persistence:
+    # gp2 is removed as the default StorageClass by scripts/aws-up.sh.
+    storageClass: gp3
+
+rabbitmq:
+  auth:
+    # Secret projected by External Secrets Operator from AWS Secrets Manager.
+    # It must exist before the StatefulSet starts and carry exactly three
+    # keys: RABBITMQ_DEFAULT_USER, RABBITMQ_DEFAULT_PASS and `url`
+    # (amqp://<user>:<pass>@agentflow-rabbitmq:5672//, trailing // = vhost /).
+    #
+    # With this set the chart creates no Secret of its own, which is the
+    # whole point: the broker password never reaches Git. The fallback, if
+    # the ExternalSecret is not there yet, is to delete this line - the
+    # chart then generates the Secret from `auth.username`/`auth.password`
+    # and the demo password ends up in this file.
+    existingSecret: agentflow-rabbitmq
+  persistence:
+    storageClass: gp3
+  managementIngress:
+    # Admin UIs are port-forwarded on AWS (`make aws-ui`).
+    enabled: false
+
+# External Secrets Operator owns agentflow-api-secrets and
+# agentflow-worker-secrets here. Two owners for one object is a permanent
+# ArgoCD conflict, so this stays false.
+appSecrets:
+  create: false

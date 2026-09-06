@@ -1,0 +1,32 @@
+# Profile "local": everything in-cluster, including the two dummy
+# application Secrets and the management VirtualService.
+# Mirrors deploy/envs/local/infra.yaml; only used by helm lint / kubeconform.
+postgresql:
+  cnpg:
+    enabled: true
+    instances: 1
+    storage:
+      size: 2Gi
+
+redis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 1Gi
+
+rabbitmq:
+  enabled: true
+  auth:
+    username: agentflow
+    password: agentflow
+    vhost: /
+  definitions:
+    enabled: true
+  managementIngress:
+    enabled: true
+    host: rabbitmq.agentflow.test
+
+appSecrets:
+  create: true
+  data:
+    OPENAI_API_KEY: changeme

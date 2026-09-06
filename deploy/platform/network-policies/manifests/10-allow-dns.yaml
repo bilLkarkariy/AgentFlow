@@ -1,0 +1,36 @@
+########################################################################
+# DNS.
+#
+# The first thing that breaks under a default-deny egress policy, and the
+# hardest to diagnose: every hostname in the app (agentflow-db-rw,
+# api.openai.com, otel-collector.observability) turns into a 5s timeout
+# instead of a connection refused.
+#
+# CoreDNS listens on UDP/53 and TCP/53 (TCP is used for responses larger
+# than 512 bytes, which EDNS0 and long SRV answers routinely are).
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

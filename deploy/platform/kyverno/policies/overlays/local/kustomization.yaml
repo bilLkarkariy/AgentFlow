@@ -1,0 +1,34 @@
+########################################################################
+# Kyverno policies - kind overlay.
+#
+# The three hygiene policies are enforced exactly as in base. Only image
+# signature verification is relaxed: local images are built with
+# `docker build` and loaded with `kind load`, so they carry no cosign
+# signature at all, and the kind node has no guaranteed egress to Fulcio
+# and Rekor.
+#
+# `mutateDigest` has to move with it: Kyverno rejects a policy that would
+# rewrite the image reference while only auditing it.
+#
+# Flip both back to Enforce/true once the GHCR images are signed and pulled
+# instead of side-loaded (plan phase 2, step 6).
+########################################################################
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      group: kyverno.io
+      version: v1
+      kind: ClusterPolicy
+      name: verify-image-signatures
+    patch: |
+      - op: replace
+        path: /spec/rules/0/verifyImages/0/failureAction
+        value: Audit
+      - op: replace
+        path: /spec/rules/0/verifyImages/0/mutateDigest
+        value: false

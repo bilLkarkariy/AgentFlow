@@ -1,0 +1,42 @@
+########################################################################
+# `kubectl run bad --image=nginx:latest -n agentflow`, the live demo.
+# Fails disallow-latest-tag (rule validate-image-tag) and, incidentally,
+# the limits and non-root policies too.
+########################################################################
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-latest
+  namespace: agentflow
+spec:
+  containers:
+    - name: nginx
+      image: nginx:latest
+      securityContext:
+        runAsNonRoot: true
+      resources:
+        limits:
+          memory: 128Mi
+        requests:
+          cpu: 10m
+---
+########################################################################
+# No tag at all: fails disallow-latest-tag (rule require-image-tag),
+# because `nginx` resolves to `nginx:latest` at pull time.
+########################################################################
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-no-tag
+  namespace: agentflow
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      securityContext:
+        runAsNonRoot: true
+      resources:
+        limits:
+          memory: 128Mi
+        requests:
+          cpu: 10m

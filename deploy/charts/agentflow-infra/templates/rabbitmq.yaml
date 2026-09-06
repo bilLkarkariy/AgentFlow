@@ -1,0 +1,239 @@
+{{- if .Values.rabbitmq.enabled }}
+{{- $r := .Values.rabbitmq }}
+{{- $ctx := dict "root" . "component" "rabbitmq" }}
+{{- $secret := include "agentflow-infra.rabbitmq.secretName" . }}
+########################################################################
+# RabbitMQ: the flow-run work queue shared by the api and the worker.
+# Single node, no clustering, no sidecar.
+########################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $r.name }}
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-amqp
+      port: {{ $r.ports.amqp }}
+      targetPort: tcp-amqp
+      protocol: TCP
+    - name: http-mgmt
+      port: {{ $r.ports.management }}
+      targetPort: http-mgmt
+      protocol: TCP
+    - name: http-metrics
+      port: {{ $r.ports.metrics }}
+      targetPort: http-metrics
+      protocol: TCP
+  selector:
+    {{- include "agentflow-infra.selectorLabels" $ctx | nindent 4 }}
+---
+# Headless service backing the StatefulSet (stable per-pod DNS name).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $r.name }}-headless
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-amqp
+      port: {{ $r.ports.amqp }}
+      targetPort: tcp-amqp
+      protocol: TCP
+  selector:
+    {{- include "agentflow-infra.selectorLabels" $ctx | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $r.name }}
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  serviceName: {{ $r.name }}-headless
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "agentflow-infra.selectorLabels" $ctx | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/rabbitmq-config.yaml") . | sha256sum }}
+        sidecar.istio.io/inject: "false"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ $r.ports.metrics | quote }}
+        prometheus.io/path: /metrics
+        {{- with $r.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "agentflow-infra.selectorLabels" $ctx | nindent 8 }}
+        app: rabbitmq
+        {{- with $r.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      {{- with $r.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with $r.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: rabbitmq
+          image: "{{ $r.image.repository }}:{{ $r.image.tag }}"
+          imagePullPolicy: {{ $r.image.pullPolicy }}
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: RABBITMQ_DEFAULT_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: RABBITMQ_DEFAULT_PASS
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: {{ $r.auth.vhost | default "/" | quote }}
+          ports:
+            - name: tcp-amqp
+              containerPort: {{ $r.ports.amqp }}
+              protocol: TCP
+            - name: http-mgmt
+              containerPort: {{ $r.ports.management }}
+              protocol: TCP
+            - name: http-metrics
+              containerPort: {{ $r.ports.metrics }}
+              protocol: TCP
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          {{- with $r.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $r.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+            - name: config
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+              readOnly: true
+            # conf.d is merged in lexical order; 10-defaults.conf is written
+            # by the entrypoint from RABBITMQ_DEFAULT_USER/PASS.
+            - name: config
+              mountPath: /etc/rabbitmq/conf.d/20-agentflow.conf
+              subPath: 20-agentflow.conf
+              readOnly: true
+            {{- if $r.definitions.enabled }}
+            - name: config
+              mountPath: /etc/rabbitmq/definitions.json
+              subPath: definitions.json
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $r.name }}-config
+            defaultMode: 0444
+        {{- if not $r.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+      {{- with $r.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if $r.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "agentflow-infra.labels" $ctx | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml $r.persistence.accessModes | nindent 10 }}
+        {{- with $r.persistence.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $r.persistence.size }}
+  {{- end }}
+{{- if $r.managementIngress.enabled }}
+---
+########################################################################
+# Management UI on the shared gateway. Local convenience only: the
+# dashboard DLQ console links to <host>/#/queues/%2F/agentflow.flow-run.dlq.
+# On AWS admin UIs are reached with `make aws-ui` (port-forward).
+########################################################################
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ $r.name }}
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+spec:
+  gateways:
+    {{- toYaml $r.managementIngress.gateways | nindent 4 }}
+  hosts:
+    - {{ required "rabbitmq.managementIngress.host is required when managementIngress.enabled" $r.managementIngress.host }}
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: {{ $r.name }}
+            port:
+              number: {{ $r.ports.management }}
+      # The management UI streams; the Istio default of 15s cuts it.
+      timeout: 0s
+{{- end }}
+{{- end }}

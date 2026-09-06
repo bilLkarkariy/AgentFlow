@@ -1,0 +1,45 @@
+########################################################################
+# Kubernetes API server access for the CloudNativePG instances.
+#
+# NOT part of the original plan, added because it breaks a real component:
+# a CNPG pod is not just Postgres. The instance manager (pid 1) watches its
+# own Cluster resource and patches the pod's status to elect the primary.
+# Under a default-deny egress policy the pod starts, Postgres accepts
+# connections, and the Cluster never becomes healthy - a genuinely
+# confusing failure.
+#
+# NetworkPolicy has no way to name "the API server": it is not a pod, and
+# `kubernetes.default.svc` resolves to a virtual IP that the CNI rewrites
+# before the policy is evaluated. The honest options are an ipBlock with
+# the endpoint address, or - on EKS - nothing at all, because the VPC CNI
+# does not police traffic to the control plane ENI.
+#
+# HARDENING: replace 0.0.0.0/0 below with the control-plane endpoint /32:
+#   kind -> kubectl -n default get endpoints kubernetes -o jsonpath='{.subsets[0].addresses[0].ip}'
+#   EKS  -> the API endpoint resolves inside the VPC; use the ENI addresses
+# The rule is already scoped to the database pods and to the two ports the
+# API server ever listens on.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kube-apiserver
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: agentflow-db
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 6443
+        - protocol: TCP
+          port: 443

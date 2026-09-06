@@ -1,0 +1,101 @@
+{{- if .Values.postgresql.cnpg.enabled }}
+{{- $pg := .Values.postgresql.cnpg }}
+########################################################################
+# CloudNativePG Cluster.
+#
+# Creates, without any further manifest:
+#   Services  <name>-rw (primary), <name>-ro (replicas), <name>-r (any)
+#   Secret    <name>-app  -> key `uri` = POSTGRES_URL of the api
+#   Secret    <name>-superuser (only when enableSuperuserAccess is on)
+#
+# `inheritedMetadata` is the operator-side equivalent of podAnnotations:
+# every object the operator creates for this Cluster gets them, which is how
+# the instances opt out of the Istio sidecar and get scraped by annotation.
+########################################################################
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ $pg.name }}
+  labels:
+    {{- include "agentflow-infra.labels" (dict "root" . "component" "postgresql") | nindent 4 }}
+  annotations:
+    {{- if $pg.skipDryRunOnMissingResource }}
+    # The CRD arrives with the cnpg-operator Application (wave -2). Without
+    # this ArgoCD fails the whole app on a server-side dry-run when the CRD
+    # is not registered yet.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    {{- end }}
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  instances: {{ $pg.instances }}
+  {{- with $pg.imageName }}
+  imageName: {{ . }}
+  {{- end }}
+  primaryUpdateStrategy: {{ $pg.primaryUpdateStrategy }}
+  enablePDB: {{ $pg.enablePDB }}
+  inheritedMetadata:
+    {{- with $pg.inheritedMetadata.annotations }}
+    annotations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $pg.inheritedMetadata.labels }}
+    labels:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ $pg.bootstrap.initdb.database }}
+      owner: {{ $pg.bootstrap.initdb.owner }}
+      {{- with $pg.bootstrap.initdb.postInitApplicationSQL }}
+      postInitApplicationSQL:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  storage:
+    size: {{ $pg.storage.size }}
+    {{- with $pg.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  {{- with $pg.parameters }}
+  postgresql:
+    parameters:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  monitoring:
+    enablePodMonitor: {{ $pg.monitoring.enablePodMonitor }}
+  {{- with $pg.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $pg.serviceAccountAnnotations }}
+  serviceAccountTemplate:
+    metadata:
+      annotations:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
+  {{- if $pg.backup.enabled }}
+  backup:
+    {{- with $pg.backup.retentionPolicy }}
+    retentionPolicy: {{ . | quote }}
+    {{- end }}
+    barmanObjectStore:
+      destinationPath: {{ required "postgresql.cnpg.backup.destinationPath is required when backup.enabled" $pg.backup.destinationPath }}
+      {{- with $pg.backup.endpointURL }}
+      endpointURL: {{ . }}
+      {{- end }}
+      {{- with $pg.backup.serverName }}
+      serverName: {{ . }}
+      {{- end }}
+      s3Credentials:
+        {{- toYaml $pg.backup.s3Credentials | nindent 8 }}
+      {{- with $pg.backup.wal }}
+      wal:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pg.backup.data }}
+      data:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}
+{{- end }}

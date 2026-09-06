@@ -1,0 +1,101 @@
+########################################################################
+# Tempo - trace store, monolithic mode (wave 10).
+# Chart: grafana/tempo 1.24.4 (Tempo 2.9), see deploy/versions.yaml.
+#
+# Traces arrive from the OTel Collector over OTLP gRPC; Grafana reads them
+# at tempo.observability.svc:3200. The metrics generator turns spans into
+# service-graph and span metrics and remote-writes them to Prometheus,
+# which is what feeds Grafana's service map.
+########################################################################
+
+replicas: 1
+
+tempo:
+  retention: 24h
+  reportingEnabled: false
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  ####################################################################
+  # Receivers. Only OTLP is used (the api and the OTel Collector both
+  # speak it). The chart hardcodes the jaeger/zipkin/opencensus ports in
+  # its Service template and dereferences tempo.receivers.jaeger.*, so
+  # they cannot be removed from values without breaking the render; they
+  # stay open on the Service and nothing sends to them.
+  ####################################################################
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  ####################################################################
+  # Metrics generator -> Prometheus remote write.
+  # Prometheus accepts this because prometheusSpec.enableRemoteWriteReceiver
+  # is on (deploy/platform/kube-prometheus-stack/values.yaml).
+  ####################################################################
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+    processor:
+      service_graphs:
+        wait: 10s
+        max_items: 10000
+      span_metrics:
+        enable_target_info: true
+    registry:
+      collection_interval: 15s
+      external_labels:
+        source: tempo
+    storage:
+      # On the PVC, not /tmp: the WAL must survive a restart.
+      path: /var/tempo/generator/wal
+    traces_storage:
+      path: /var/tempo/generator/traces
+
+  # The generator only runs for tenants whose overrides list its
+  # processors; single-tenant mode means "defaults".
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+persistence:
+  enabled: true
+  size: 5Gi
+  accessModes:
+    - ReadWriteOnce
+
+# Scraped by the annotated-pods ScrapeConfig, not by a ServiceMonitor.
+serviceMonitor:
+  enabled: false
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3200"
+  prometheus.io/path: /metrics
+  # Belt and braces: the observability namespace is not labelled for
+  # injection, and a sidecar in front of the OTLP ports would only add
+  # latency to the trace path.
+  sidecar.istio.io/inject: "false"
+
+# The Jaeger-compatible query UI is redundant: Grafana is the trace UI.
+tempoQuery:
+  enabled: false

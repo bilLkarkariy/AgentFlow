@@ -1,0 +1,89 @@
+########################################################################
+# RBAC for the `kubernetes` provider of ClusterSecretStore/agentflow.
+#
+# The provider does NOT use the operator's own permissions. It asks the
+# API server for a short-lived token of the ServiceAccount named in
+# `spec.provider.kubernetes.auth.serviceAccount` and then reads the remote
+# namespace *as that identity*. So the blast radius of the store is
+# exactly what `eso-reader` is allowed to do: read Secrets in
+# platform-secrets, nothing else, in no other namespace.
+#
+# Used by overlays/local. On EKS the store uses the `aws` provider and
+# these objects sit unused - they are kept in base so there is a single
+# definition of the reader identity to reason about.
+########################################################################
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-reader
+  namespace: platform-secrets
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-reader
+  namespace: platform-secrets
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-reader
+  namespace: platform-secrets
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eso-reader
+subjects:
+  - kind: ServiceAccount
+    name: eso-reader
+    namespace: platform-secrets
+---
+# Before every fetch the provider runs a SelfSubjectRulesReview to work out
+# what the impersonated identity may read (and to fail loudly instead of
+# silently returning nothing). That review is a cluster-scoped create, so
+# it cannot live in the Role above.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eso-reader-selfsubjectrulesreview
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+rules:
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - selfsubjectrulesreviews
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eso-reader-selfsubjectrulesreview
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: eso-reader-selfsubjectrulesreview
+subjects:
+  - kind: ServiceAccount
+    name: eso-reader
+    namespace: platform-secrets

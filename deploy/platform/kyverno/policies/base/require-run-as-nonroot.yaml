@@ -1,0 +1,106 @@
+########################################################################
+# Containers must run as a non-root user.
+#
+# ---------------------------------------------------------------------
+# Why two rules instead of one, and why no PolicyException
+# ---------------------------------------------------------------------
+# Without istio-cni (the kind setup), the sidecar injector adds an
+# `istio-init` init container that programs the pod's iptables. It needs
+# NET_ADMIN + NET_RAW and it runs as uid 0. It is injected by the mesh, so
+# no workload owner can fix it.
+#
+# A Kyverno `PolicyException` is the documented escape hatch, but its unit
+# is the *resource*: an exception matching the agentflow Pods would switch
+# this policy off for the whole pod, application containers included. That
+# is exactly the thing we want to keep enforced.
+#
+# So the exemption is expressed where it belongs - in the rule itself:
+# rule 2 iterates over `spec.initContainers[?name != 'istio-init']`. Every
+# other init container (including a future `istio-validation`, which does
+# run as non-root) is still checked. `features.policyExceptions` stays
+# enabled in the chart values as the escape hatch for one-off cases, but
+# no exception object is needed here.
+#
+# On AWS istio-cni is enabled, no `istio-init` is injected at all, and
+# rule 2 simply has nothing to skip.
+########################################################################
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-run-as-nonroot
+  annotations:
+    policies.kyverno.io/title: Require runAsNonRoot
+    policies.kyverno.io/category: Pod Security Standards (Restricted)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Containers in the agentflow namespace must set runAsNonRoot=true,
+      either on the pod securityContext or on the container. The injected
+      `istio-init` init container is exempt.
+spec:
+  background: true
+  rules:
+    - name: containers-run-as-nonroot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - agentflow
+      validate:
+        failureAction: Enforce
+        message: >-
+          Containers must run as non-root: set runAsNonRoot=true on the pod
+          securityContext or on every container securityContext.
+        anyPattern:
+          # Pod-level opt-in; a container may not override it with `false`.
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+              containers:
+                - =(securityContext):
+                    =(runAsNonRoot): true
+          # Or every container opts in on its own.
+          - spec:
+              containers:
+                - securityContext:
+                    runAsNonRoot: true
+
+    - name: init-containers-run-as-nonroot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - agentflow
+      # Skip the rule entirely when the pod carries no init container other
+      # than the Istio one; `foreach` over an empty list would otherwise be
+      # reported as a skipped rule on every single pod.
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.initContainers[?name != 'istio-init'] || `[]` | length(@) }}"
+            operator: GreaterThan
+            value: 0
+      validate:
+        failureAction: Enforce
+        message: >-
+          Init containers must run as non-root (only the injected
+          `istio-init` container is exempt).
+        foreach:
+          - list: "request.object.spec.initContainers[?name != 'istio-init']"
+            deny:
+              conditions:
+                any:
+                  # The init container explicitly opts out. The kubelet honours
+                  # the container value over the pod value, so a pod-level
+                  # `true` does not save it.
+                  - key: "{{ to_string(element.securityContext.runAsNonRoot) }}"
+                    operator: Equals
+                    value: "false"
+                  # Or nobody opts in at all. `||` in JMESPath skips falsy
+                  # values, so this walks container -> pod -> 'unset'.
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true

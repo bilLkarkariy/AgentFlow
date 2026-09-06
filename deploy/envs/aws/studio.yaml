@@ -1,0 +1,18 @@
+########################################################################
+# agentflow-studio - EKS (aws).
+# DOMAIN_PLACEHOLDER becomes <eip-with-dashes>.sslip.io at cluster creation.
+########################################################################
+
+image:
+  tag: sha-0000000
+
+replicaCount: 2
+
+runtimeConfig:
+  values:
+    API_BASE_URL: https://api.DOMAIN_PLACEHOLDER
+
+istio:
+  virtualService:
+    hosts:
+      - studio.DOMAIN_PLACEHOLDER

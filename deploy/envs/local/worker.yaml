@@ -1,0 +1,10 @@
+########################################################################
+# agentflow-worker - kind (local).
+# `image.tag` is bumped by CI; everything else comes from the base file.
+########################################################################
+
+image:
+  tag: sha-0000000
+
+config:
+  DEPLOY_ENV: local

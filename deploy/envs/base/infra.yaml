@@ -1,0 +1,105 @@
+########################################################################
+# agentflow-infra - values shared by every environment.
+#
+# Rendered by deploy/argocd/envs/<env>/infra.yaml (sync wave -1), so the
+# database, Redis and RabbitMQ exist before the first api pod starts.
+#
+# The CloudNativePG operator itself is a separate Application at wave -2.
+########################################################################
+
+postgresql:
+  cnpg:
+    enabled: true
+    # Fixed name: the api reads POSTGRES_URL from the Secret the operator
+    # derives from it (agentflow-db-app, key `uri`), and CNPG publishes the
+    # Services agentflow-db-rw / -ro / -r.
+    name: agentflow-db
+    instances: 1
+    primaryUpdateStrategy: unsupervised
+    storage:
+      size: 2Gi
+    bootstrap:
+      initdb:
+        database: agentflow
+        owner: agentflow
+        # The api entities use uuid_generate_v4() defaults.
+        postInitApplicationSQL:
+          - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+    monitoring:
+      # Annotation-based scraping everywhere; no Prometheus Operator objects.
+      enablePodMonitor: false
+    inheritedMetadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+        prometheus.io/path: /metrics
+      labels:
+        app: postgres
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    backup:
+      enabled: false
+
+redis:
+  enabled: true
+  name: agentflow-redis
+  image:
+    repository: redis
+    tag: 7-alpine
+  port: 6379
+  args:
+    - --appendonly
+    - "yes"
+    - --dir
+    - /data
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+rabbitmq:
+  enabled: true
+  name: agentflow-rabbitmq
+  image:
+    repository: rabbitmq
+    tag: 3.13-management-alpine
+  ports:
+    amqp: 5672
+    management: 15672
+    metrics: 15692
+  plugins:
+    - rabbitmq_management
+    - rabbitmq_prometheus
+  definitions:
+    enabled: true
+    deadLetterExchange: agentflow.dlx
+    appQueue: agentflow.flow-run
+    deadLetterQueue: agentflow.flow-run.dlq
+    # The api asserts agentflow.flow-run itself; declaring it here too would
+    # risk a PRECONDITION_FAILED on any argument mismatch. See the chart
+    # README for the exact arguments the api must use to turn this on.
+    declareAppQueue: false
+  persistence:
+    enabled: true
+    size: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# Off by default. Only the local environment creates the two application
+# Secrets from this chart; on AWS External Secrets Operator owns them.
+appSecrets:
+  create: false

@@ -1,0 +1,34 @@
+########################################################################
+# agentflow-api - EKS (aws).
+#
+# Promotion is a pull request, not an automatic bump: the tag below is only
+# changed by .github/workflows/promote-aws.yml.
+#
+# DOMAIN_PLACEHOLDER is replaced with <eip-with-dashes>.sslip.io when the
+# cluster is created (WP13 templates it from the Terraform output).
+########################################################################
+
+image:
+  tag: sha-0000000
+
+# Two replicas across the canary: real traffic shifting needs somewhere to
+# shift to, and RabbitMQ competing consumers make a second api pod safe.
+replicaCount: 2
+
+config:
+  DEPLOY_ENV: aws
+  # RDS runs with rds.force_ssl=1, so the driver must negotiate TLS.
+  POSTGRES_SSL: "true"
+  # 10% sampling: Tempo storage is the only thing that costs money here.
+  OTEL_TRACES_SAMPLER_ARG: "0.1"
+
+# Secret projected by External Secrets Operator from AWS Secrets Manager
+# (agentflow/demo/db), holding the RDS connection string.
+database:
+  existingSecret: agentflow-db
+  secretKey: POSTGRES_URL
+
+istio:
+  virtualService:
+    hosts:
+      - api.DOMAIN_PLACEHOLDER

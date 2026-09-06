@@ -1,0 +1,46 @@
+########################################################################
+# kube-prometheus-stack - kind / OrbStack overrides.
+#
+# Reached through the Istio gateway:
+#   https://grafana.agentflow.test
+#   https://prometheus.agentflow.test
+#   https://alertmanager.agentflow.test
+# (VirtualServices in deploy/platform/istio/config/overlays/local).
+########################################################################
+
+prometheus:
+  prometheusSpec:
+    externalUrl: https://prometheus.agentflow.test
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          # kind ships `standard` (local-path-provisioner) as the default
+          # StorageClass; leaving storageClassName unset picks it up.
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 8Gi
+
+alertmanager:
+  alertmanagerSpec:
+    externalUrl: https://alertmanager.agentflow.test
+
+grafana:
+  # Demo cluster, anonymous Viewer is already on; this password only
+  # unlocks the editor role behind the login form. Never used on AWS.
+  adminUser: admin
+  adminPassword: admin
+
+  grafana.ini:
+    server:
+      root_url: https://grafana.agentflow.test
+      serve_from_sub_path: false
+
+prometheus-node-exporter:
+  # kind nodes are containers: the host "/" the exporter wants to bind is
+  # the node container's filesystem, and mounting it read-only with
+  # HostToContainer propagation fails on OrbStack. The exporter still
+  # reports CPU, memory, network and load from /proc and /sys.
+  hostRootFsMount:
+    enabled: false

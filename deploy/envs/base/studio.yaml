@@ -1,0 +1,121 @@
+########################################################################
+# agentflow-studio - values shared by every environment.
+#
+# Static SPA served by nginx-unprivileged. One image per commit, configured
+# at container start: the APP_* env vars below become /config.js
+# (window.__APP_CONFIG__), so the same digest runs in kind and on EKS.
+########################################################################
+
+appLabel: studio
+
+image:
+  repository: ghcr.io/billkarkariy/agentflow-studio
+  pullPolicy: IfNotPresent
+
+# nginx-unprivileged listens on 8080, not 80.
+containerPort: 8080
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  appProtocol: http
+
+# Canary with Istio traffic shifting, but no analysis: a static bundle has no
+# meaningful success rate of its own, and the api canary already gates the
+# release.
+rollout:
+  enabled: true
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: { duration: 60s }
+      - setWeight: 50
+      - pause: { duration: 60s }
+    maxSurge: "25%"
+    maxUnavailable: 0
+    abortScaleDownDelaySeconds: 30
+    trafficRouting:
+      istio:
+        enabled: true
+    analysis:
+      enabled: false
+
+# Each key K becomes the env var APP_K, which the nginx entrypoint writes
+# into /config.js. API_BASE_URL is per environment.
+runtimeConfig:
+  enabled: true
+  values: {}
+
+# Contract with WP3: nginx serves /healthz for all three probes.
+probes:
+  startup:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# nginxinc/nginx-unprivileged runs as uid/gid 101, not the chart default
+# 10001: the cache and pid directories baked into the image belong to 101.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+podAnnotations:
+  proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+# The entrypoint renders /config.js and the nginx template under /tmp,
+# which is the only writable path on a read-only root filesystem.
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+serviceMonitor:
+  enabled: false
+
+istio:
+  virtualService:
+    enabled: true
+    gateways:
+      - istio-ingress/agentflow-gateway
+    # hosts: per environment.
+    timeout: 30s
+    retries:
+      attempts: 2
+      retryOn: "connect-failure,refused-stream,reset"
+  destinationRule:
+    enabled: true

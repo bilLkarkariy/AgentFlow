@@ -1,0 +1,17 @@
+########################################################################
+# Tempo - kind / OrbStack overrides.
+########################################################################
+
+replicas: 1
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+tempo:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi

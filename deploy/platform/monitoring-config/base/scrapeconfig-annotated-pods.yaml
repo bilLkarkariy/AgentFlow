@@ -1,0 +1,95 @@
+########################################################################
+# One scrape job for every annotated pod in the cluster.
+#
+# The mesh makes per-service ServiceMonitors redundant and awkward: with
+# meshConfig.enablePrometheusMerge the sidecar republishes the
+# application's own metrics together with Envoy's on :15020, and rewrites
+# the pod's prometheus.io/* annotations to point there. One annotation
+# driven job therefore covers api, worker, RabbitMQ, CNPG, ArgoCD,
+# istiod, the gateway, Rollouts and metrics-server alike.
+#
+# Contract: pods carry prometheus.io/scrape, prometheus.io/port and
+# (optionally) prometheus.io/path and prometheus.io/scheme.
+########################################################################
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: annotated-pods
+spec:
+  scrapeInterval: 15s
+  scrapeTimeout: 10s
+
+  kubernetesSDConfigs:
+    - role: Pod
+
+  relabelings:
+    # 1. Opt in.
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+      regex: "true"
+
+    # 2. Init containers never serve metrics, and a pod that is not
+    #    running has nothing to answer with. "Completed" is not a real
+    #    phase, it is kept because kubelet reports it during teardown.
+    - action: drop
+      sourceLabels: [__meta_kubernetes_pod_container_init]
+      regex: "true"
+    - action: drop
+      sourceLabels: [__meta_kubernetes_pod_phase]
+      regex: Pending|Succeeded|Failed|Completed
+
+    # 3. Endpoint: scheme, path and port all come from annotations.
+    #    Each regex only matches when the annotation is set, so pods
+    #    without it keep Prometheus' defaults (http, /metrics).
+    - action: replace
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+      regex: (https?)
+      targetLabel: __scheme__
+      replacement: $1
+    - action: replace
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+      regex: (.+)
+      targetLabel: __metrics_path__
+      replacement: $1
+    - action: replace
+      sourceLabels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+      regex: ([^:]+)(?::\d+)?;(\d+)
+      targetLabel: __address__
+      replacement: $1:$2
+
+    # 4. Identity. `app` and `version` are set on every AgentFlow pod by
+    #    the agentflow-service chart (plan section 5) and are what the
+    #    dashboards slice on.
+    - action: replace
+      sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    - action: replace
+      sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - action: replace
+      sourceLabels: [__meta_kubernetes_pod_label_app]
+      targetLabel: app
+    - action: replace
+      sourceLabels: [__meta_kubernetes_pod_label_version]
+      targetLabel: version
+    - action: replace
+      sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: node
+
+    # No `container` label on purpose. Pod discovery emits one target per
+    # container port, and step 3 sends every one of them to the same
+    # annotated endpoint; an injected pod would then be scraped once as
+    # its application container and once as istio-proxy, doubling every
+    # counter. Without a container label those targets carry identical
+    # label sets and Prometheus keeps a single one. The container that
+    # produced a metric is not recoverable here anyway: with prometheus
+    # merge the sidecar serves the application's metrics.
+
+  metricRelabelings:
+    # Envoy's request/response size histograms are the biggest series
+    # source in the mesh and no dashboard or alert uses them.
+    - action: drop
+      sourceLabels: [__name__]
+      regex: istio_(request|response)_bytes_bucket

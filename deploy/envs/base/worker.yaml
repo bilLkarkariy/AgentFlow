@@ -1,0 +1,102 @@
+########################################################################
+# agentflow-worker - values shared by every environment.
+#
+# The Celery worker pulls from RabbitMQ and calls the api back over the
+# mesh. It receives no inbound traffic, so it gets no Service, no
+# VirtualService and no canary: a plain Deployment behind an HPA.
+########################################################################
+
+appLabel: worker
+
+image:
+  repository: ghcr.io/billkarkariy/agentflow-worker
+  pullPolicy: IfNotPresent
+
+# Prometheus exporter and health endpoint of the worker (WP2), not an app port.
+containerPort: 9100
+
+# No inbound traffic: no Service, and therefore no ServiceMonitor either
+# (the chart refuses that combination).
+service:
+  enabled: false
+
+rollout:
+  enabled: false
+
+# Queue consumers scale on CPU; the HPA owns spec.replicas, so replicaCount
+# is deliberately absent from every worker values file.
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+config:
+  # In-cluster Service of the api, not the loopback the api uses for itself.
+  API_URL: http://agentflow-api
+  METRICS_PORT: "9100"
+  LOG_LEVEL: info
+
+# CELERY_BROKER_URL.
+# Local: created by deploy/charts/agentflow-infra (dummy values).
+# AWS:   created by External Secrets Operator from AWS Secrets Manager.
+secrets:
+  existingSecret: agentflow-worker-secrets
+
+# Contract with WP2: the worker serves /healthz on the metrics port. There is
+# no /health, so every probe points at /healthz.
+probes:
+  startup:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9100"
+  prometheus.io/path: /metrics
+  proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+serviceMonitor:
+  enabled: false
+
+istio:
+  virtualService:
+    enabled: false
+  destinationRule:
+    enabled: false

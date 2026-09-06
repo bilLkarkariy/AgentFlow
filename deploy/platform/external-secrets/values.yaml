@@ -1,0 +1,120 @@
+########################################################################
+# External Secrets Operator - shared values.
+# Chart: external-secrets/external-secrets (see deploy/versions.yaml).
+#
+# ESO turns a provider-side secret into a plain Kubernetes Secret:
+#   local -> provider `kubernetes`, reading ns platform-secrets, which
+#            scripts/seed-local-secrets.sh fills from the developer's .env
+#   aws   -> provider `aws` (Secrets Manager) through IRSA
+#
+# The ClusterSecretStore and the ExternalSecrets live in manifests/
+# (sync wave 16); this file only installs the operator (wave 15).
+########################################################################
+
+# Helm owns the CRDs so ArgoCD can diff them like any other resource.
+installCRDs: true
+
+crds:
+  createClusterExternalSecret: true
+  createClusterSecretStore: true
+  createSecretStore: true
+  createPushSecret: true
+  createClusterPushSecret: true
+  createClusterGenerator: true
+
+replicaCount: 1
+
+# Single replica: no lease to fight over.
+leaderElect: false
+
+# One reconcile at a time is plenty for a handful of ExternalSecrets and
+# keeps the memory profile flat.
+concurrent: 1
+
+log:
+  level: info
+  timeEncoding: rfc3339
+
+serviceAccount:
+  create: true
+  # values-aws.yaml adds the IRSA role-arn annotation here. Empty locally:
+  # the `kubernetes` provider does not use this identity at all, it mints a
+  # token for `platform-secrets/eso-reader` and reads as that instead.
+  annotations: {}
+
+podLabels:
+  agentflow.io/layer: security
+
+# WP8 scrapes annotated pods (no ServiceMonitor in mesh mode).
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: /metrics
+
+serviceMonitor:
+  enabled: false
+
+grafanaDashboard:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+podDisruptionBudget:
+  enabled: false
+
+# --------------------------------------------------------------------
+# Validating webhook for the SecretStore / ExternalSecret CRs. Keeps a
+# typo in a provider block from being accepted and silently never syncing.
+# --------------------------------------------------------------------
+webhook:
+  create: true
+  replicaCount: 1
+
+  podLabels:
+    agentflow.io/layer: security
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: /metrics
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+  podDisruptionBudget:
+    enabled: false
+
+# --------------------------------------------------------------------
+# Issues and rotates the webhook's serving certificate. Cheaper than
+# wiring cert-manager in for a single internal certificate.
+# --------------------------------------------------------------------
+certController:
+  create: true
+  replicaCount: 1
+
+  podLabels:
+    agentflow.io/layer: security
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: /metrics
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+  podDisruptionBudget:
+    enabled: false

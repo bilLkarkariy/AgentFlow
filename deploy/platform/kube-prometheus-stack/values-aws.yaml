@@ -1,0 +1,43 @@
+########################################################################
+# kube-prometheus-stack - EKS overrides.
+#
+# Admin UIs are not published on AWS; `make aws-ui` port-forwards them,
+# hence the localhost root_url.
+########################################################################
+
+prometheus:
+  prometheusSpec:
+    externalUrl: http://localhost:9090
+    resources:
+      requests:
+        cpu: 250m
+        memory: 768Mi
+      limits:
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 8Gi
+
+alertmanager:
+  alertmanagerSpec:
+    externalUrl: http://localhost:9093
+
+grafana:
+  # No password in git on AWS: the Secret is created by External Secrets
+  # from Secrets Manager (agentflow/demo/app) with keys admin-user and
+  # admin-password. See deploy/platform/external-secrets (WP9).
+  admin:
+    existingSecret: agentflow-grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  grafana.ini:
+    server:
+      root_url: http://localhost:3000
+      serve_from_sub_path: false

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - require-resource-limits.yaml
+  - disallow-latest-tag.yaml
+  - require-run-as-nonroot.yaml
+  - verify-image-signatures.yaml
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: agentflow-platform
+      agentflow.io/component: kyverno-policies

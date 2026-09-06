@@ -1,0 +1,95 @@
+{{- if .Values.rabbitmq.enabled }}
+{{- $r := .Values.rabbitmq }}
+{{- $ctx := dict "root" . "component" "rabbitmq" }}
+########################################################################
+# RabbitMQ configuration.
+#
+#   enabled_plugins      management UI (dashboard DLQ console) + prometheus
+#                        exporter on 15692 (scraped by pod annotation).
+#   20-agentflow.conf    merged after the 10-defaults.conf the official
+#                        entrypoint writes from RABBITMQ_DEFAULT_USER/PASS.
+#   definitions.json     imported at boot with load_definitions.
+#
+# The definitions declare the dead letter exchange, the DLQ and the binding,
+# but NOT the application queue `agentflow.flow-run`: the api asserts that
+# queue itself, and any disagreement on durability or on the x-arguments
+# would make the api's channel die with PRECONDITION_FAILED. Set
+# `rabbitmq.definitions.declareAppQueue: true` only once the api asserts it
+# with exactly the same arguments.
+########################################################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $r.name }}-config
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  enabled_plugins: |
+    [{{ join "," $r.plugins }}].
+  20-agentflow.conf: |
+    listeners.tcp.default = {{ $r.ports.amqp }}
+    management.tcp.port = {{ $r.ports.management }}
+    prometheus.tcp.port = {{ $r.ports.metrics }}
+    log.console = true
+    log.console.level = info
+    log.file = false
+    {{- if $r.definitions.enabled }}
+    load_definitions = /etc/rabbitmq/definitions.json
+    {{- end }}
+    {{- with $r.extraConfig }}
+    {{- . | nindent 4 }}
+    {{- end }}
+  {{- if $r.definitions.enabled }}
+  {{- $d := $r.definitions }}
+  {{- $vhost := $r.auth.vhost | default "/" }}
+  definitions.json: |
+    {
+      "exchanges": [
+        {
+          "name": {{ $d.deadLetterExchange | quote }},
+          "vhost": {{ $vhost | quote }},
+          "type": "direct",
+          "durable": true,
+          "auto_delete": false,
+          "internal": false,
+          "arguments": {}
+        }
+      ],
+      "queues": [
+        {{- if $d.declareAppQueue }}
+        {
+          "name": {{ $d.appQueue | quote }},
+          "vhost": {{ $vhost | quote }},
+          "durable": true,
+          "auto_delete": false,
+          "arguments": {
+            "x-dead-letter-exchange": {{ $d.deadLetterExchange | quote }},
+            "x-dead-letter-routing-key": {{ $d.appQueue | quote }}
+          }
+        },
+        {{- end }}
+        {
+          "name": {{ $d.deadLetterQueue | quote }},
+          "vhost": {{ $vhost | quote }},
+          "durable": true,
+          "auto_delete": false,
+          "arguments": {}
+        }
+      ],
+      "bindings": [
+        {
+          "source": {{ $d.deadLetterExchange | quote }},
+          "vhost": {{ $vhost | quote }},
+          "destination": {{ $d.deadLetterQueue | quote }},
+          "destination_type": "queue",
+          "routing_key": {{ $d.appQueue | quote }},
+          "arguments": {}
+        }
+      ]
+    }
+  {{- end }}
+{{- end }}

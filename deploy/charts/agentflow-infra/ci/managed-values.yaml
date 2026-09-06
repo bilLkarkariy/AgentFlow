@@ -1,0 +1,41 @@
+# Profile "managed": the shapes deploy/envs/aws/infra.yaml can take.
+#
+# It deliberately keeps the CNPG Cluster ON with backups and an IRSA
+# annotation, even though the aws environment runs RDS: this is the only
+# place the barmanObjectStore branch and the external-Secret branch of the
+# chart get rendered at all.
+postgresql:
+  cnpg:
+    enabled: true
+    instances: 2
+    storage:
+      size: 2Gi
+      storageClass: gp3
+    serviceAccountAnnotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::000000000000:role/agentflow-demo-cnpg
+    backup:
+      enabled: true
+      destinationPath: s3://agentflow-demo-backups/agentflow-db
+      s3Credentials:
+        inheritFromIAMRole: true
+      retentionPolicy: 7d
+
+redis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: gp3
+
+rabbitmq:
+  enabled: true
+  auth:
+    # No password in Git: the Secret is projected by External Secrets.
+    existingSecret: agentflow-rabbitmq
+  persistence:
+    storageClass: gp3
+  managementIngress:
+    enabled: false
+
+appSecrets:
+  create: false

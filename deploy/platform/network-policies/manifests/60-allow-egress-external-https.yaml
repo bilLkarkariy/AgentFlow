@@ -1,0 +1,52 @@
+########################################################################
+# Egress to the public internet.
+#
+# AgentFlow is an LLM orchestrator: without this rule the product does not
+# work. The api and the worker call api.openai.com, Google APIs and Slack
+# webhooks over 443; 80 is kept for the HTTP redirect that several of
+# those endpoints still answer with.
+#
+# The `except` list is where the security actually lives. Allowing
+# 0.0.0.0/0 minus the RFC1918 ranges means a compromised container can
+# reach the internet (it has to) but cannot pivot sideways to the VPC:
+# no RDS instance on 10.x, no other cluster on 172.16.x, no home LAN on
+# 192.168.x. 169.254.0.0/16 is the important one on AWS - 169.254.169.254
+# is the instance metadata service, and reading it is the classic path
+# from "SSRF in a pod" to "node IAM role credentials".
+#
+# In-cluster destinations are unaffected: the pod CIDR is inside one of the
+# excluded ranges, and the intra-namespace / observability / istiod rules
+# above grant exactly the internal traffic that is needed.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-external-https
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - api
+          - worker
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
