@@ -7,15 +7,12 @@
 ########################################################################
 
 image:
-  tag: sha-0000000
-
+  tag: sha-18ee43c
 replicaCount: 1
-
 runtimeConfig:
   values:
     API_BASE_URL: https://api.127.0.0.1.sslip.io
     RABBITMQ_MGMT_URL: https://rabbitmq.127.0.0.1.sslip.io
-
 istio:
   virtualService:
     hosts:
