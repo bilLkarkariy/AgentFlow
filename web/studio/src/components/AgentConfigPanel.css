@@ -1,43 +1,108 @@
 .agent-config-panel {
-  padding: 1rem;
+  padding: 0.875rem;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  background-color: #f9fafb;
+  border-radius: 0.625rem;
+  background-color: #f8fafc;
+  font-size: 13px;
 }
 
-.agent-config-panel h3,
+.agent-config-panel h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin: 0 0 0.75rem;
+}
+
 .agent-config-panel h4 {
-  margin-bottom: 0.5rem;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin: 0 0 0.5rem;
+}
+
+.agent-config-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.625rem;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.agent-config-panel label input {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  font-size: 13px;
+  color: #1e293b;
+  background: #fff;
+}
+
+.agent-config-panel label input:focus {
+  outline: none;
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px #eef2ff;
 }
 
 .mapping-section {
   margin-top: 1rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.mapping-section > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 
 .mapping-section select {
-  margin: 0 0.5rem;
-  padding: 0.25rem;
+  margin: 0;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 12.5px;
+  color: #475569;
+  background: #fff;
+  width: 100%;
+}
+
+.mapping-section > div > span {
+  text-align: center;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .mapping-section button {
-  margin-left: 0.5rem;
-  padding: 0.25rem 0.5rem;
+  margin-left: 0;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: #fff;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mapping-section button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .mapping-section ul {
   list-style: none;
   padding: 0;
-  margin-top: 0.5rem;
-}
-
-.mapping-section li {
+  margin-top: 0.625rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.25rem 0;
-}
-
-.mapping-section li button {
-  margin-left: 0.5rem;
-  padding: 0.25rem 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 12px;
+  color: #475569;
 }
