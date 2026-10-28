@@ -31,7 +31,7 @@ describe('LogsTimeline', () => {
   it('renders log events', () => {
     render(<LogsTimeline runId={runId} />);
     act(() => {
-      mockHandlers['flowLog']({
+      mockHandlers['log']({
         runId,
         nodeId: 'node1',
         status: 'success',
@@ -48,7 +48,7 @@ describe('LogsTimeline', () => {
     // stub scrollHeight
     Object.defineProperty(container, 'scrollHeight', { value: 500, configurable: true });
     act(() => {
-      mockHandlers['flowLog']({
+      mockHandlers['log']({
         runId,
         nodeId: 'node-scroll',
         status: 'info',
@@ -57,6 +57,23 @@ describe('LogsTimeline', () => {
       });
     });
     expect(container.scrollTop).toBe(500);
+  });
+
+  it('starts empty for a new run', () => {
+    const { rerender } = render(<LogsTimeline runId={runId} />);
+    act(() => {
+      mockHandlers['log']({
+        runId,
+        nodeId: 'run',
+        status: 'success',
+        timestamp: Date.now(),
+        message: 'First run done',
+      });
+    });
+    rerender(<LogsTimeline runId="next-run" />);
+    expect(fakeSocket.disconnect).toHaveBeenCalled();
+    expect(connectToRun).toHaveBeenLastCalledWith('next-run');
+    expect(screen.queryByText(/First run done/)).toBeNull();
   });
 
   it('toggles collapse/expand', () => {

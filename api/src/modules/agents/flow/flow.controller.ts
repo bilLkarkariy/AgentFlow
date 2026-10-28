@@ -50,7 +50,7 @@ export class FlowController {
     const dto = typeof body === 'string'
       ? this.dslParserService.parse(body)
       : body;
-    const model = this.pricing.normalizeModel(dto?.nodes?.[0]?.model);
+    const model = this.pricing.normalizeModel(dto?.nodes?.[0]?.data?.model);
     let tokenCount = 0;
     this.flowEngineService.runFlow(dto, inputQuery).subscribe({
       next: token => {

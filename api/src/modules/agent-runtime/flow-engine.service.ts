@@ -23,14 +23,17 @@ export class FlowEngineService {
     const currentSpan = trace.getSpan(context.active());
     const traceId = currentSpan?.spanContext().traceId;
     const agents = flow.nodes.map(n => {
-      const agentTools = (n as any).tools?.map((blk: any) =>
+      // The studio keeps a node's settings under `data`; the agent block
+      // edits `label` and `prompt` as aliases of `name` and `instructions`.
+      const cfg = n.data ?? {};
+      const agentTools = cfg.tools?.map((blk: any) =>
         typeof blk.toOpenAITool === 'function' ? blk.toOpenAITool() : blk
       ) || [];
       return {
         id: n.id,
-        name: (n as any).name,
-        instructions: (n as any).instructions || '',
-        model: (n as any).model,
+        name: cfg.name || cfg.label || undefined,
+        instructions: cfg.instructions || cfg.prompt || '',
+        model: cfg.model || undefined,
         tools: agentTools,
       };
     });

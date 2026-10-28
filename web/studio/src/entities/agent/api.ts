@@ -9,7 +9,10 @@ const createAgentFn = (name: string): Promise<Agent> => api.post('/agents', { na
 const getAgentFlowFn = (agentId: string): Promise<FlowDto> => api.get(`/agents/${agentId}/flow`).then(res => res.data);
 const saveAgentFlowFn = (params: { agentId: string; flow: FlowDto }): Promise<void> =>
   api.put(`/agents/${params.agentId}/flow`, params.flow).then(() => {});
-export const runAgentFlowFn = (agentId: string): Promise<{ status: string; runId: string }> => api.post(`/agents/${agentId}/flow/execute`).then(res => res.data);
+// Starts an asynchronous run of the saved flow; its tokens and logs stream to
+// the `runId` room of the /ws/flow socket (see features/flowLogs/socket).
+export const runAgentFlowFn = (agentId: string, input = ''): Promise<{ status: string; runId: string }> =>
+  api.post(`/agents/${agentId}/flow/runs`, { input }).then(res => ({ status: res.data.status, runId: res.data.id }));
 
 // React Query hooks
 export function useAgents() {
@@ -44,8 +47,8 @@ export function useSaveAgentFlow(agentId: string) {
 
 export function useRunAgentFlow() {
   const qc = useQueryClient();
-  return useMutation<{ status: string; runId: string }, Error, string>({
-    mutationFn: runAgentFlowFn,
+  return useMutation<{ status: string; runId: string }, Error, { agentId: string; input: string }>({
+    mutationFn: ({ agentId, input }) => runAgentFlowFn(agentId, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['runs'] }),
   });
 }
