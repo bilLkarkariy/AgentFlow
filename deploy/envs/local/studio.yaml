@@ -6,7 +6,7 @@
 ########################################################################
 
 image:
-  tag: sha-efa6049
+  tag: sha-7f7399a
 replicaCount: 1
 runtimeConfig:
   values:
