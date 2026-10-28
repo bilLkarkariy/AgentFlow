@@ -1,4 +1,4 @@
 # Runtime dependencies of the Python agent runners (see requirements-dev.txt for tests).
 openai-agents
 python-dotenv
-requests>=2.31
+requests>=2.34.2
