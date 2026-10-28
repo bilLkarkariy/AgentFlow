@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1 - build the static bundle (always on the native builder arch)
 # ---------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:25-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
