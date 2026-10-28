@@ -133,6 +133,10 @@ all of it, with their alternatives, are in
 
 ## Quick start
 
+Requirements: Node.js 24 or later, pnpm 8 (`corepack enable` picks up the
+version pinned in `package.json`; Node.js 25 and later no longer bundle
+Corepack, so run `npm install -g corepack` first), Python 3.12, Docker.
+
 ```bash
 pnpm install
 pnpm --filter api run start:dev
