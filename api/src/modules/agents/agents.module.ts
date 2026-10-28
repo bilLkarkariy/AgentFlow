@@ -19,6 +19,7 @@ import { FlowRunNode } from './flow/flow-run-node.entity';
 import { FlowRunConsumer } from './flow/flow-run.consumer';
 import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
 import { AgentRuntimeModule } from '../agent-runtime/agent-runtime.module';
+import { FlowLogsModule } from '../flow-logs/flow-logs.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AgentRuntimeModule } from '../agent-runtime/agent-runtime.module';
     QueuesModule,
     RabbitMQModule,
     AgentRuntimeModule,
+    FlowLogsModule,
   ],
   controllers: [AgentsController, ExecutionController, FlowController, FlowRunController],
   providers: [AgentsService, DslParserService, FlowService, FlowGateway, FlowRunService, FlowRunConsumer],

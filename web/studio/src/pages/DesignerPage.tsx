@@ -11,7 +11,8 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useFlowStore } from '../store/useFlowStore';
-import { useAgentFlow, useSaveAgentFlow, useRunAgentFlow } from '../entities/agent/api';
+import { useAgentFlow, useSaveAgentFlow } from '../entities/agent/api';
+import { useFlowRun } from '../hooks/useFlowRun';
 import NodePalette from '../components/NodePalette';
 import NodeBox from '../components/NodeBox';
 import NodeInspector from '../components/NodeInspector';
@@ -29,10 +30,8 @@ export default function DesignerPage() {
   const navigate = useNavigate();
 
   // Run state
-  const [runId, setRunId] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
+  const { runId, progress, start: runFlow } = useFlowRun(agentId);
   const [controlSocket, setControlSocket] = useState<Socket | null>(null);
-  const [logSocket, setLogSocket] = useState<Socket | null>(null);
 
   const { nodes: storeNodes, edges: storeEdges, selectedNodeId, setSelectedNode, updateNodeData, setNodes: setStoreNodes, setEdges: setStoreEdges, addNode: storeAddNode, addEdge: storeAddEdge } = useFlowStore();
   const mappings = useFlowStore((s) => s.mappings);
@@ -41,7 +40,6 @@ export default function DesignerPage() {
   const [edges, setEdgesRf] = useEdgesState(storeEdges);
   const { data: flowData } = useAgentFlow(agentId!);
   const saveMutation = useSaveAgentFlow(agentId!);
-  const runMutation = useRunAgentFlow();
 
   useEffect(() => {
     if (!flowData) return;
@@ -74,28 +72,11 @@ export default function DesignerPage() {
     });
   };
 
-  const runFlow = async () => {
-    if (!agentId) return;
-    // start run and get runId
-    const res = await runMutation.mutateAsync(agentId!);
-    setRunId(res.runId);
-  };
-
   // Setup control socket
   useEffect(() => {
     if (!runId) return;
     const sock = io(API_BASE_URL, { path: '/ws' });
     setControlSocket(sock);
-    return () => { sock.disconnect(); };
-  }, [runId]);
-
-  // Setup log socket
-  useEffect(() => {
-    if (!runId) return;
-    const sock = io(`${API_BASE_URL}/ws/flow`);
-    sock.on('connect', () => sock.emit('join', { runId }));
-    sock.on('tokens', () => setProgress(p => p + 1));
-    setLogSocket(sock);
     return () => { sock.disconnect(); };
   }, [runId]);
 

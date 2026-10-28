@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PlayIcon, ForwardIcon, StopIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface TestBarProps {
   onSave: () => void;
-  onRun: () => void;
+  /** Receives the test message, sent to the flow as its input. */
+  onRun: (input: string) => void;
   onStep: () => void;
   onStop: () => void;
   progress?: number;
@@ -14,10 +15,23 @@ const ghost =
 
 const TestBar: React.FC<TestBarProps> = ({ onSave, onRun, onStep, onStop, progress = 0 }) => {
   const running = progress > 0;
+  const [input, setInput] = useState('');
+  const run = () => onRun(input);
   return (
     <div className="flex items-center gap-1 px-4 py-2.5 bg-white border-b border-line">
+      <input
+        type="text"
+        aria-label="Message de test"
+        placeholder="Message de test…"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') run();
+        }}
+        className="h-8 w-56 mr-1 border border-line rounded-md px-2.5 text-[13px] text-ink focus:outline-none focus:border-agent"
+      />
       <button
-        onClick={onRun}
+        onClick={run}
         className="flex items-center gap-1.5 h-8 px-3 text-[13px] font-medium rounded-md bg-ink text-white hover:bg-ink/90 transition-colors"
       >
         <PlayIcon className="w-4 h-4" strokeWidth={1.9} />

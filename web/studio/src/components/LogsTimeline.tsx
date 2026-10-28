@@ -12,8 +12,9 @@ const LogsTimeline: React.FC<LogsTimelineProps> = ({ runId }) => {
 
   useEffect(() => {
     if (!runId) return;
+    setEvents([]);
     const socket = connectToRun(runId);
-    socket.on('flowLog', (ev: FlowLogEvent) => {
+    socket.on('log', (ev: FlowLogEvent) => {
       setEvents((prev) => [...prev, ev]);
     });
     return () => {
@@ -44,7 +45,7 @@ const LogsTimeline: React.FC<LogsTimelineProps> = ({ runId }) => {
           {events.map((ev, idx) => (
             <div
               key={idx}
-              className={`px-2 py-1 rounded text-sm ${
+              className={`px-2 py-1 rounded text-sm whitespace-pre-wrap break-words ${
                 ev.status === 'success'
                   ? 'bg-green-100 text-green-800'
                   : ev.status === 'error'
