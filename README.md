@@ -159,8 +159,9 @@ docker compose down -v
 
 ## Development from source
 
-Requirements: Node.js 20 or later, pnpm 8 (`corepack enable` picks up the
-version pinned in `package.json`), Python 3.12, Docker.
+Requirements: Node.js 24 or later, pnpm 8 (`corepack enable` picks up the
+version pinned in `package.json`; Node.js 25 and later no longer bundle
+Corepack, so run `npm install -g corepack` first), Python 3.12, Docker.
 
 Start the backing services and install the dependencies:
 
