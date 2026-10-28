@@ -70,6 +70,9 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # No OpenTelemetry collector in this stack (the Kubernetes platform
+      # runs one): without this the exporter logs a connection error per batch.
+      - OTEL_SDK_DISABLED=true
     depends_on:
       postgres:
         condition: service_healthy

@@ -10,7 +10,9 @@ import { AppModule } from '../src/modules/app.module';
 
 // Récupère account ID depuis .env
 const accountId = process.env.QUONTO_ACCOUNT_ID || process.env.QUONTO_CLIENT_ID;
-const describeQuonto = describe;
+// Calls the live Qonto API: runs only when the client credentials are set.
+const describeQuonto =
+  accountId && process.env.QUONTO_CLIENT_SECRET ? describe : describe.skip;
 
 describeQuonto('QuontoModule (e2e)', () => {
   let app: INestApplication;

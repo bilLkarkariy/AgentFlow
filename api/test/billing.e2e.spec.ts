@@ -10,7 +10,10 @@ jest.setTimeout(30000);
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-describe('Billing (e2e)', () => {
+// Calls the live Stripe API: runs only when a (test mode) key is configured.
+const describeWithStripe = process.env.STRIPE_SECRET_KEY ? describe : describe.skip;
+
+describeWithStripe('Billing (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
