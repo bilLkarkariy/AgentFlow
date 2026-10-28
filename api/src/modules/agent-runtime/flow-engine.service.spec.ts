@@ -25,7 +25,7 @@ describe('FlowEngineService.serialize', () => {
   it('serializes full FlowDto correctly', () => {
     const flowDto = {
       nodes: [
-        { id: 'n1', type: 'type', positionX: 0, positionY: 0, data: {}, name: 'agent1', instructions: 'instr', model: 'mod', tools: ['t1'] } as any,
+        { id: 'n1', type: 'type', positionX: 0, positionY: 0, data: { name: 'agent1', instructions: 'instr', model: 'mod', tools: ['t1'] } } as any,
       ],
       edges: [{ id: 'e1', source: 'n1', target: 'n2', label: 'lbl' } as any],
       mappings: [] as any[],
@@ -50,6 +50,16 @@ describe('FlowEngineService.serialize', () => {
     const payload = (service as any).serialize(flowDto, 'other-input');
     expect(payload.agents).toEqual([{ id: 'n2', name: undefined, instructions: '', model: undefined, tools: [] }]);
     expect(payload.edges).toEqual([]);
+  });
+
+  it('reads the agent block label and prompt as name and instructions', () => {
+    const flowDto = {
+      nodes: [{ id: 'n3', type: 'agent', positionX: 0, positionY: 0, data: { label: 'Tri', prompt: 'Classe la demande' } } as any],
+      edges: [] as any[],
+      mappings: [] as any[],
+    } as FlowDto;
+    const payload = (service as any).serialize(flowDto, 'x');
+    expect(payload.agents).toEqual([{ id: 'n3', name: 'Tri', instructions: 'Classe la demande', model: undefined, tools: [] }]);
   });
 });
 
