@@ -404,9 +404,6 @@ complete: CI validates every manifest and Terraform stack, and builds,
 scans and signs the images. Unit and end-to-end tests cover the API core.
 Parts of the product surface are still prototypes:
 
-- The studio's **Run** button calls `POST /agents/:id/flow/execute`, but
-  the API serves that route as a GET Server-Sent Events stream. Flows run
-  through the API endpoints listed in [Architecture](#architecture).
 - Several studio pages (billing, team, workspace settings, marketplace,
   help) are placeholders.
 - Some integrations are partial: the Stripe webhook handler, the Gmail
