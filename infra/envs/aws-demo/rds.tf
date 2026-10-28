@@ -43,7 +43,7 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_nodes" {
 
 module "rds" {
   source  = "terraform-aws-modules/rds/aws"
-  version = "~> 6.10"
+  version = "~> 7.2"
 
   identifier = "${local.name}-db"
 
@@ -61,8 +61,12 @@ module "rds" {
 
   db_name  = "agentflow"
   username = "agentflow"
-  password = random_password.db.result
-  port     = 5432
+  # Module v7 only takes the master password as a write-only argument: it
+  # is sent to RDS but not kept in the instance's state. Increment the
+  # version to push a new value.
+  password_wo         = random_password.db.result
+  password_wo_version = 1
+  port                = 5432
 
   # The master password lives in the secret this stack writes
   # (agentflow/demo/db). Letting RDS manage it would create a second,
