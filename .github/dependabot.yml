@@ -2,10 +2,10 @@
 # Dependency updates. Everything is weekly and grouped so the repository
 # gets a handful of reviewable PRs instead of a flood of single bumps.
 #
-# Note: an ecosystem entry whose directory does not exist yet is reported
-# as an error on the Dependabot dashboard. The terraform entries for
-# infra/envs/aws-demo and infra/bootstrap become live with the AWS work
-# packages (WP11-13).
+# Major versions are ignored in every ecosystem: a major upgrade is a
+# migration (Tailwind 4, Storybook 10, a new Node line, a Terraform module
+# that renames its inputs...) and is done on purpose, in its own PR, not
+# from a weekly bump.
 ########################################################################
 version: 2
 
@@ -30,6 +30,10 @@ updates:
         applies-to: security-updates
         patterns:
           - '*'
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: chore(deps)
       prefix-development: chore(deps-dev)
@@ -53,6 +57,10 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: chore(deps)
     labels:
@@ -72,6 +80,10 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: chore(deps)
     labels:
@@ -98,6 +110,10 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: chore(deps)
     labels:
@@ -119,6 +135,10 @@ updates:
         applies-to: version-updates
         patterns:
           - '*'
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: ci(deps)
     labels:
@@ -144,6 +164,10 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: chore(deps)
     labels:
