@@ -18,7 +18,7 @@ describe('RunsList', () => {
         <RunsList agentId="agent1" />
       </QueryClientProvider>
     );
-    expect(screen.getByText(/Loading runs.../i)).toBeInTheDocument();
+    expect(screen.getByText(/Chargement/i)).toBeInTheDocument();
   });
 
   it('renders runs after fetch', async () => {
@@ -28,8 +28,9 @@ describe('RunsList', () => {
         <RunsList agentId="agent1" />
       </QueryClientProvider>
     );
-    await waitFor(() => expect(screen.getByText('Last runs')).toBeInTheDocument());
-    expect(screen.getByText('r1 - success')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('r1')).toBeInTheDocument());
+    expect(screen.getByText('Dernières exécutions')).toBeInTheDocument();
+    expect(screen.getByText('success')).toBeInTheDocument();
   });
 
   it('shows error on fetch failure', async () => {
@@ -39,6 +40,6 @@ describe('RunsList', () => {
         <RunsList agentId="agent1" />
       </QueryClientProvider>
     );
-    await waitFor(() => expect(screen.getByText(/Error loading runs/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Aucune exécution pour ce flow/i)).toBeInTheDocument());
   });
 });

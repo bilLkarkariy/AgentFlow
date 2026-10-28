@@ -47,6 +47,8 @@ env:
 jobs:
   guard:
     name: is anything still running
+    # Forks and fresh clones have no AWS role: skip instead of failing every six hours.
+    if: ${{ vars.AWS_ROLE_ARN != '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
