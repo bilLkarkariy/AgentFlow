@@ -6,7 +6,7 @@
 # Stage 1 : compile the NestJS app and materialise a production node_modules.
 # Runs on the builder architecture: the output is plain JS, no native module.
 # ---------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
 
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH" \
@@ -51,7 +51,7 @@ RUN --mount=type=cache,id=pip,target=/root/.cache/pip,sharing=locked \
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS runtime
 
-COPY --from=node:20-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 
 # tini reaps the Python child processes; the libs are what the node binary links against.
 RUN apt-get update \
