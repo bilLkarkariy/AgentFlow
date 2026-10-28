@@ -29,6 +29,12 @@ docs/*
 !docs/ops/**
 !docs/adr/
 !docs/adr/**
+!docs/notes/
+!docs/notes/**
+!docs/rfc/
+!docs/rfc/**
+!docs/ui/
+!docs/ui/**
 issues/sprint1
 issues/sprint2
 issues/sprint3
