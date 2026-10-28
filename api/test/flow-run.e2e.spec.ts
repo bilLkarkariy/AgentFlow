@@ -3,6 +3,9 @@
 process.env.POSTGRES_URL = process.env.POSTGRES_URL ?? 'postgres://postgres:postgres@localhost:5433/agentflow_test';
 delete process.env.JEST_WORKER_ID;
 process.env.NODE_ENV = 'development';
+// The schema belongs to the migrations; this throwaway database is built
+// from the entities instead, and dropped in afterAll.
+process.env.TYPEORM_SYNCHRONIZE = 'true';
 
 import * as dotenv from 'dotenv';
 import path from 'path';
