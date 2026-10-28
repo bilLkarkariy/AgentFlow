@@ -1,0 +1,17 @@
+########################################################################
+# monitoring-config - kind / OrbStack.
+#
+# Nothing differs from the base: the scrape job, the rules and the
+# dashboards are the same signal in both environments, which is the
+# point of the demo.
+########################################################################
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+labels:
+  - includeSelectors: false
+    pairs:
+      agentflow.io/environment: local

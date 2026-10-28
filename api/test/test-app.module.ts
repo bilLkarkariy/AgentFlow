@@ -14,11 +14,13 @@ import { AgentFlowNode } from '../src/modules/agents/flow/agent-flow-node.entity
 import { AgentFlowEdge } from '../src/modules/agents/flow/agent-flow-edge.entity';
 import { FlowRun } from '../src/modules/agents/flow/flow-run.entity';
 import { FlowRunNode } from '../src/modules/agents/flow/flow-run-node.entity';
+import { PricingModule } from '../src/modules/pricing/pricing.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    PricingModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'sqlite',

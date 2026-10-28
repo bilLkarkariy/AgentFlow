@@ -1,0 +1,53 @@
+########################################################################
+# istio/gateway - the single ingress gateway (release istio-ingressgateway,
+# namespace istio-ingress, wave 5).
+#
+# The Gateway resource `istio-ingress/agentflow-gateway` (wave 6) selects
+# these pods through `istio: ingressgateway`.
+########################################################################
+
+# The chart already stamps `istio: ingressgateway` (derived from the release
+# name), which is what the Gateway resource selects on, plus the standard
+# app.kubernetes.io/* labels. Only add what is missing - overriding this key
+# replaces the whole map, so the ambient opt-out has to be repeated.
+labels:
+  istio.io/dataplane-mode: none
+  agentflow.io/component: istio-ingress
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "15020"
+  prometheus.io/path: /stats/prometheus
+  inject.istio.io/templates: gateway
+  sidecar.istio.io/inject: "true"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# One gateway pod; scaling is an environment decision.
+autoscaling:
+  enabled: false
+
+replicaCount: 1
+
+podDisruptionBudget: {}
+
+service:
+  type: ClusterIP
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443

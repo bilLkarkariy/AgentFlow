@@ -1,0 +1,369 @@
+########################################################################
+# kube-prometheus-stack - Prometheus, Alertmanager, Grafana (wave 9).
+# Chart: prometheus-community/kube-prometheus-stack (deploy/versions.yaml).
+#
+# Scraping model: no ServiceMonitor per app. The platform relies on the
+# `annotated-pods` ScrapeConfig shipped by monitoring-config (wave 11), so
+# every selector below must accept objects that carry no Helm release label.
+########################################################################
+
+crds:
+  enabled: true
+
+########################################################################
+# Managed control-plane components.
+#
+# kind and EKS both hide etcd, the controller-manager, the scheduler and
+# kube-proxy behind the managed control plane: their /metrics endpoints are
+# unreachable, so scraping them only produces permanently red targets. The
+# matching default rules are dropped for the same reason.
+########################################################################
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+kubeApiServer:
+  enabled: true
+kubelet:
+  enabled: true
+coreDns:
+  enabled: true
+
+defaultRules:
+  create: true
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    windows: false
+
+########################################################################
+# Operator.
+########################################################################
+prometheusOperator:
+  admissionWebhooks:
+    # cert-manager is installed at wave 1, five waves before this chart, so
+    # the webhook certificate is issued instead of patched by a Job.
+    certManager:
+      enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+
+########################################################################
+# Prometheus.
+########################################################################
+prometheus:
+  enabled: true
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    scrapeTimeout: 10s
+
+    retention: 24h
+    retentionSize: 3GB
+
+    # Tempo's metrics generator pushes service-graph and span metrics here.
+    enableRemoteWriteReceiver: true
+
+    # Accept PrometheusRule / ServiceMonitor / PodMonitor / Probe /
+    # ScrapeConfig objects that do not carry the release label: the
+    # monitoring-config kustomize overlay owns them, not this chart.
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 8Gi
+
+    # The metrics generator can lag a few seconds behind head; a small
+    # out-of-order window avoids dropped samples on remote write.
+    tsdb:
+      outOfOrderTimeWindow: 10m
+
+  service:
+    port: 9090
+
+########################################################################
+# Alertmanager - routed to the `null` receiver on purpose.
+#
+# This is a demo platform: alerts are shown in the Alertmanager UI and in
+# Grafana, nothing is paged. Wiring a real receiver is one values change.
+########################################################################
+alertmanager:
+  enabled: true
+  config:
+    route:
+      group_by: ['namespace', 'alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: "null"
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
+    receivers:
+      - name: "null"
+  alertmanagerSpec:
+    retention: 24h
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 192Mi
+
+########################################################################
+# Grafana.
+########################################################################
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: browser
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
+
+  grafana.ini:
+    server:
+      # Overridden per environment (values-local.yaml / values-aws.yaml).
+      root_url: http://localhost:3000
+    auth.anonymous:
+      enabled: true
+      org_name: Main Org.
+      org_role: Viewer
+    auth:
+      disable_login_form: false
+    users:
+      default_theme: dark
+      viewers_can_edit: true
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+    log:
+      mode: console
+    news:
+      news_feed_enabled: false
+
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      # Dashboards land in the folder named by this annotation.
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+    datasources:
+      enabled: true
+      # Fixed uid: every hand-written dashboard and the Tempo service map
+      # reference `prometheus` explicitly.
+      uid: prometheus
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: true
+      name: Prometheus
+
+  ######################################################################
+  # Extra datasources, with trace <-> log correlation both ways.
+  ######################################################################
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.observability.svc.cluster.local:3100
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+        timeout: 60
+        # api logs are pino JSON carrying trace_id; turn it into a link
+        # to the matching Tempo trace.
+        derivedFields:
+          - name: TraceID
+            matcherType: regex
+            matcherRegex: '"trace_id"\s*:\s*"([a-f0-9]+)"'
+            url: '${__value.raw}'
+            urlDisplayLabel: View trace
+            datasourceUid: tempo
+
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.observability.svc.cluster.local:3200
+      isDefault: false
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: -5m
+          spanEndTimeShift: 5m
+          filterByTraceID: true
+          filterBySpanID: false
+          tags:
+            - key: k8s.namespace.name
+              value: namespace
+            - key: k8s.pod.name
+              value: pod
+        tracesToMetrics:
+          datasourceUid: prometheus
+          spanStartTimeShift: -5m
+          spanEndTimeShift: 5m
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        search:
+          hide: false
+        streamingEnabled:
+          search: true
+
+  ######################################################################
+  # Community dashboards, pulled from grafana.com at pod start by the
+  # download-dashboards init container. AgentFlow's own dashboards come
+  # from monitoring-config through the sidecar instead.
+  ######################################################################
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: istio
+          orgId: 1
+          folder: Istio
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/istio
+        - name: argo
+          orgId: 1
+          folder: Argo
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/argo
+
+  dashboards:
+    istio:
+      istio-mesh:
+        gnetId: 7639
+        revision: 233
+        datasource: Prometheus
+      istio-service:
+        gnetId: 7636
+        revision: 233
+        datasource: Prometheus
+      istio-workload:
+        gnetId: 7630
+        revision: 233
+        datasource: Prometheus
+      istio-control-plane:
+        gnetId: 7645
+        revision: 233
+        datasource: Prometheus
+    argo:
+      argo-cd:
+        gnetId: 14584
+        revision: 1
+        datasource: Prometheus
+
+  service:
+    portName: http-web
+
+  serviceMonitor:
+    # Scraped through the annotated-pods ScrapeConfig instead.
+    enabled: false
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+    prometheus.io/path: /metrics
+
+########################################################################
+# Exporters - deliberately small, this is a laptop-sized cluster.
+########################################################################
+nodeExporter:
+  enabled: true
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+  prometheus:
+    monitor:
+      enabled: false
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9100"
+    prometheus.io/path: /metrics
+
+kubeStateMetrics:
+  enabled: true
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+  prometheus:
+    monitor:
+      enabled: false
+  # `app` and `version` are the two labels every AgentFlow dashboard slices
+  # on; without this they never leave the pod object.
+  metricLabelsAllowlist:
+    - pods=[app,version]
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: /metrics
+
+########################################################################
+# Off: no Thanos, no Windows nodes.
+########################################################################
+thanosRuler:
+  enabled: false
+windowsMonitoring:
+  enabled: false

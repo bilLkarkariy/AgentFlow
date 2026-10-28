@@ -1,0 +1,29 @@
+{{- $argocdNs := include "bootstrap.argocdNamespace" . }}
+{{- range $name, $description := dict "platform" "Cluster platform components reconciled from deploy/platform" "agentflow" "AgentFlow application workloads reconciled from deploy/envs" }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ $name }}
+  namespace: {{ $argocdNs }}
+  annotations:
+    # Wave -1: the projects must exist before any Application referencing them.
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: {{ $description | quote }}
+  sourceRepos:
+    - '*'
+  destinations:
+    - server: '*'
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: false
+{{- end }}

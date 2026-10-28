@@ -1,37 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import ToastProvider from './Toast';
 
+const STORAGE_KEY = 'agentflow.sidebar.collapsed';
+
 const BaseLayout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch { /* stockage indisponible */ }
+  }, [collapsed]);
+
   return (
     <>
       <ToastProvider />
-      <div className="flex h-screen">
-        {/* Mobile drawer */}
+      <div className="flex h-screen bg-canvas">
+        {/* Tiroir mobile */}
         <div
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r transform transition-transform duration-300 lg:hidden ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 lg:hidden ${
+            drawerOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <Sidebar />
         </div>
-        {/* Overlay */}
-        {sidebarOpen && (
+        {drawerOpen && (
           <div
-            className="fixed inset-0 bg-black opacity-50 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-ink/40 z-40 lg:hidden"
+            onClick={() => setDrawerOpen(false)}
           />
         )}
-        {/* Desktop sidebar */}
-        <div className="hidden lg:flex lg:flex-shrink-0">
-          <Sidebar />
+
+        {/* Rail de navigation */}
+        <div className="hidden lg:flex lg:shrink-0">
+          <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         </div>
-        <div className="flex-1 flex flex-col">
-          <Topbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="p-6 overflow-auto">
+
+        <div className="flex-1 flex flex-col min-w-0">
+          <Topbar onToggleSidebar={() => setDrawerOpen(!drawerOpen)} />
+          <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
         </div>

@@ -1,0 +1,33 @@
+########################################################################
+# Kyverno - kind overrides.
+#
+# One control-plane node, 10 GB of RAM for the whole cluster: keep the
+# footprint minimal and never block a pod because a single replica is
+# restarting (see forceFailurePolicyIgnore below).
+########################################################################
+
+features:
+  # A single-replica webhook is a single point of failure. On kind the
+  # cluster is disposable and a wedged webhook is far more painful than a
+  # missed check: `forceFailurePolicyIgnore` sets failurePolicy=Ignore on
+  # every generated webhook, so pods are still admitted while the Kyverno
+  # pod restarts. Deliberately NOT set on AWS (values-aws.yaml).
+  forceFailurePolicyIgnore:
+    enabled: true
+
+admissionController:
+  container:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 384Mi
+
+backgroundController:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 192Mi

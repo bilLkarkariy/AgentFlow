@@ -1,0 +1,19 @@
+########################################################################
+# istio/base - CRDs, cluster roles and the validating webhook.
+# Chart version pinned in deploy/versions.yaml (istio.version).
+#
+# Wave 3: everything the istiod chart (wave 4) needs to exist first.
+########################################################################
+
+global:
+  istioNamespace: istio-system
+  # Multicluster remote-secret RBAC is not used in this demo.
+  enableReaderRBAC: false
+
+base:
+  # Manage the CRDs as ordinary templates so ArgoCD can diff and prune them
+  # (Helm never upgrades files under crds/).
+  enableCRDTemplates: true
+  enableIstioConfigCRDs: true
+
+defaultRevision: default

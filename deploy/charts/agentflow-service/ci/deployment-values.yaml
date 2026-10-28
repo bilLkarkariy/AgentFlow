@@ -1,0 +1,68 @@
+# Profile "deployment": plain Deployment with a Service, a PodDisruptionBudget
+# and a ServiceMonitor (non-mesh clusters, where the pod-annotation ScrapeConfig
+# is not available). Also exercises secrets.create and a disabled startup probe.
+appLabel: dashboard
+image:
+  repository: ghcr.io/billkarkariy/agentflow-dashboard
+  tag: sha-1234567
+replicaCount: 2
+containerPort: 8080
+
+service:
+  enabled: true
+  port: 80
+  appProtocol: http
+
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  port: http
+  interval: 30s
+  labels:
+    release: kube-prometheus-stack
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+config:
+  LOG_LEVEL: info
+  DEPLOY_ENV: local
+
+secrets:
+  create: true
+  data:
+    PLACEHOLDER: replace-me
+
+probes:
+  startup:
+    enabled: false
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: agentflow-dashboard
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp

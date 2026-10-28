@@ -1,0 +1,35 @@
+########################################################################
+# ArgoCD - kind / local overrides.
+# Merged after argocd-values.yaml by infra/envs/local.
+########################################################################
+
+configs:
+  secret:
+    createSecret: true
+    # Demo credentials, on purpose: admin / admin on a throwaway kind cluster
+    # reachable only from 127.0.0.1. bcrypt("admin"), cost 10, generated with:
+    #   htpasswd -nbBC 10 "" admin | tr -d ':\n' | sed 's/^\$2y/\$2a/'
+    # Never reuse this pattern outside the local environment
+    # (infra/envs/aws-demo keeps the chart-generated random password).
+    argocdServerAdminPassword: "$2a$10$2ODX/Imb3r3iLRCVGtSQK.vrGNhZLfNjcN7ahxNyvCYwU.yQBSbqK"
+    argocdServerAdminPasswordMtime: "2026-09-06T15:31:23Z"
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 320Mi
+    limits:
+      memory: 768Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 160Mi
+    limits:
+      memory: 512Mi
+
+# Nothing to notify locally; saves ~70 MiB.
+notifications:
+  enabled: false

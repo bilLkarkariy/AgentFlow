@@ -1,0 +1,22 @@
+########################################################################
+# A CPU request but no memory limit: fails require-resource-limits.
+# The pod would land in the Burstable class with an unbounded memory
+# ceiling, which is how a single worker takes the kind node down.
+########################################################################
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-no-limits
+  namespace: agentflow
+  labels:
+    app: worker
+spec:
+  securityContext:
+    runAsNonRoot: true
+  containers:
+    - name: worker
+      image: ghcr.io/billkarkariy/agentflow-worker:sha-abc1234
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi

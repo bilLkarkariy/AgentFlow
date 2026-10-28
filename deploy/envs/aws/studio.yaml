@@ -1,0 +1,20 @@
+########################################################################
+# agentflow-studio - EKS (aws).
+# RENDERED: `runtimeConfig.values.API_BASE_URL` and
+# `istio.virtualService.hosts[0]` are written by
+# scripts/aws-render-env.sh from the Terraform output `ingress_domain`.
+########################################################################
+
+image:
+  tag: sha-0000000
+
+replicaCount: 2
+
+runtimeConfig:
+  values:
+    API_BASE_URL: https://api.DOMAIN_PLACEHOLDER
+
+istio:
+  virtualService:
+    hosts:
+      - studio.DOMAIN_PLACEHOLDER

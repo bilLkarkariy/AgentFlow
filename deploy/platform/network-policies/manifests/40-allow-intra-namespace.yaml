@@ -1,0 +1,35 @@
+########################################################################
+# East-west traffic inside `agentflow`.
+#
+# Covers, in one rule, every call the application makes to itself:
+#   api        -> postgres 5432 (agentflow-db-rw), redis 6379,
+#                 rabbitmq 5672
+#   worker     -> rabbitmq 5672, api 3000 (callbacks)
+#   migration Job (no sidecar) -> postgres 5432
+#   CNPG / Prometheus sidecars -> 9187, 15692, ...
+#
+# Why not one policy per pair? Because L3/L4 rules between pods that all
+# carry a mesh identity buy very little: two pods in this namespace can
+# reach each other, and *who may call which route* is expressed by Istio
+# AuthorizationPolicy at L7, where it can be stated properly. Enumerating
+# ports here would only add a second place to forget to update.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}

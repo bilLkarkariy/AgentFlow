@@ -1,0 +1,124 @@
+########################################################################
+# The cost guard.
+#
+# The AWS demo is meant to live for the length of a demo. The failure mode
+# that actually costs money is not a bad Terraform plan, it is a laptop
+# closed at 18:00 with the cluster still up: 0.24 USD/h, silently, until
+# the monthly bill.
+#
+# So every six hours this workflow assumes the read-only path of the
+# lifecycle role and asks one question: is anything expensive still
+# running? If yes, the run goes red and GitHub emails whoever owns the
+# repository. Dispatching it manually with auto_destroy=true tears the
+# environment down instead of only complaining.
+#
+# No `environment:` here on purpose. The environment gate exists to make a
+# human approve spending money; a guard that waits for an approval is not
+# a guard. The OIDC trust policy allows a second subject for exactly this
+# case: `repo:<owner>/<repo>:ref:refs/heads/main` (infra/bootstrap), which
+# is why the schedule only works on the default branch.
+########################################################################
+name: AWS guard
+
+on:
+  schedule:
+    # Every 6 hours. A forgotten cluster is therefore never more than a
+    # quarter of a day (about 1.5 USD) old before someone is told.
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      auto_destroy:
+        description: 'Tear the environment down if something is still running'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: aws-demo-guard
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  TERRAFORM_VERSION: 1.16.0
+
+jobs:
+  guard:
+    name: is anything still running
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: agentflow-aws-guard-${{ github.run_id }}
+
+      # `--guard` only fails on the four expensive things (EKS cluster,
+      # load balancer, RDS instance, EC2 instance). A stray log group is
+      # not worth waking anyone at 03:00; `make aws-check-clean` covers it
+      # after a real teardown.
+      - name: Guard check
+        id: guard
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if scripts/aws-check-clean.sh --guard; then
+            echo "running=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "running=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Terraform
+        if: steps.guard.outputs.running == 'true' && inputs.auto_destroy
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Set up kubectl
+        if: steps.guard.outputs.running == 'true' && inputs.auto_destroy
+        uses: azure/setup-kubectl@v4
+
+      - name: Tear it down (auto_destroy)
+        if: steps.guard.outputs.running == 'true' && inputs.auto_destroy
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          if aws eks describe-cluster --name agentflow-demo >/dev/null 2>&1; then
+            aws eks update-kubeconfig --region "${AWS_REGION}" \
+              --name agentflow-demo --alias agentflow-aws
+          fi
+          make aws-down YES=1
+
+      - name: Report
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.guard.outputs.running }}" != "true" ]; then
+            echo "Nothing expensive is running." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "${{ inputs.auto_destroy }}" = "true" ]; then
+            echo "The environment was running and has been destroyed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "## The AWS demo is still running"
+            echo
+            echo "It bills about 0.24 USD per hour."
+            echo
+            echo "Run the **AWS down** workflow, or this one again with"
+            echo "\`auto_destroy = true\`, or \`make aws-down\` locally."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::agentflow-demo is still running; run the AWS down workflow"
+          exit 1

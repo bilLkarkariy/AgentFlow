@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.argocdNamespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL }}
+    targetRevision: {{ .Values.gitRevision }}
+    path: {{ .Values.path }}
+    helm:
+      releaseName: platform
+      ignoreMissingValueFiles: true
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.env }}.yaml
+      parameters:
+        - name: global.env
+          value: {{ .Values.env | quote }}
+        - name: global.domain
+          value: {{ .Values.domain | quote }}
+        - name: global.gitRevision
+          value: {{ .Values.gitRevision | quote }}
+        - name: global.profile
+          value: {{ .Values.profile | quote }}
+        - name: global.repoURL
+          value: {{ .Values.repoURL | quote }}
+        {{- range $k, $v := .Values.extraParameters }}
+        - name: {{ $k | quote }}
+          value: {{ $v | quote }}
+        {{- end }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.argocdNamespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

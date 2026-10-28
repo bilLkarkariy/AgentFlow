@@ -1,0 +1,128 @@
+{{- $root := . }}
+{{- $argocdNs := include "bootstrap.argocdNamespace" . }}
+{{- $env := include "bootstrap.env" . }}
+{{- $repoURL := include "bootstrap.repoURL" . }}
+{{- $rev := include "bootstrap.gitRevision" . }}
+{{- $overrides := .Values.componentOverrides | default dict }}
+{{- range $raw := .Values.components }}
+{{- $override := dict }}
+{{- if hasKey $overrides $raw.name }}
+{{- $override = index $overrides $raw.name }}
+{{- end }}
+{{- $c := mergeOverwrite (deepCopy $raw) (deepCopy $override) }}
+{{- if include "bootstrap.enabled" (dict "component" $c "root" $root) }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $c.name }}
+  namespace: {{ $argocdNs }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ $c.wave | default 0 | quote }}
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: {{ $c.name }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ $c.project | default "platform" }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $c.namespace | default "default" }}
+  {{- if eq ($c.type | default "chart") "chart" }}
+  sources:
+    - repoURL: {{ required (printf "components.%s.repoURL is required" $c.name) $c.repoURL }}
+      chart: {{ required (printf "components.%s.chart is required" $c.name) $c.chart }}
+      targetRevision: {{ required (printf "components.%s.version is required" $c.name) $c.version | quote }}
+      helm:
+        releaseName: {{ $c.releaseName | default $c.name }}
+        # values-<env>.yaml is optional: several components only ship a base file.
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - $values/{{ $c.valuesDir }}/values.yaml
+          - $values/{{ $c.valuesDir }}/values-{{ $env }}.yaml
+        {{- with $c.helmParameters }}
+        parameters:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+    # Value-only source: carries this repository so that $values resolves.
+    - repoURL: {{ $repoURL }}
+      targetRevision: {{ $rev }}
+      ref: values
+  {{- else if eq $c.type "kustomize" }}
+  source:
+    repoURL: {{ $repoURL }}
+    targetRevision: {{ $rev }}
+    path: {{ $c.path }}/{{ $env }}
+  {{- else if eq $c.type "directory" }}
+  source:
+    repoURL: {{ $repoURL }}
+    targetRevision: {{ $rev }}
+    path: {{ $c.path }}
+    directory:
+      recurse: true
+  {{- else }}
+  {{- fail (printf "components.%s.type must be chart, kustomize or directory (got %q)" $c.name $c.type) }}
+  {{- end }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      {{- include "bootstrap.syncOptions" (dict "component" $c "root" $root) | nindent 6 }}
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  {{- with $c.ignoreDifferences }}
+  ignoreDifferences:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{- if ne .Values.agentflowApps.enabled false }}
+---
+# Wave 20: hands over to the application layer (WP5). Every file under
+# deploy/argocd/envs/<env> is an Application or an ApplicationSet.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agentflow-apps
+  namespace: {{ $argocdNs }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.agentflowApps.wave | default 20 | quote }}
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: agentflow-apps
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: agentflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $argocdNs }}
+  source:
+    repoURL: {{ $repoURL }}
+    targetRevision: {{ $rev }}
+    path: {{ .Values.agentflowApps.path }}/{{ $env }}
+    directory:
+      recurse: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

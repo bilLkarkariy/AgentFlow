@@ -1,17 +1,9 @@
 import React from 'react';
+import { API_BASE_URL, DLQ_QUEUE, RABBITMQ_MGMT_URL } from '../config';
 
 const DLQConsole: React.FC = () => {
-  const {
-    VITE_RABBITMQ_HOST,
-    VITE_RABBITMQ_MGMT_PORT,
-    VITE_RABBITMQ_VHOST,
-    VITE_RABBITMQ_DLQ_QUEUE,
-    VITE_API_BASE_URL,
-  } = import.meta.env;
-
-  const rabbitUrl = `http://${VITE_RABBITMQ_HOST}:${VITE_RABBITMQ_MGMT_PORT}` +
-    `/#/queues/${VITE_RABBITMQ_VHOST}/${VITE_RABBITMQ_DLQ_QUEUE}`;
-  const bullUrl = `${VITE_API_BASE_URL}/admin/queues`;
+  const rabbitUrl = `${RABBITMQ_MGMT_URL}/#/queues/${DLQ_QUEUE}`;
+  const bullUrl = `${API_BASE_URL}/admin/queues`;
 
   return (
     <div className="h-screen grid grid-cols-2 gap-2">

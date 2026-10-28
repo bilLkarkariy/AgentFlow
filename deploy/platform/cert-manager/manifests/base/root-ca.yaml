@@ -1,0 +1,51 @@
+########################################################################
+# Private CA chain (wave 2).
+#
+#   Issuer selfsigned-bootstrap (cert-manager)
+#     -> Certificate agentflow-root-ca  -> Secret cert-manager/agentflow-root-ca
+#        -> ClusterIssuer agentflow-ca
+#           -> Certificate agentflow-wildcard-tls (istio-ingress)
+#
+# The wildcard Secret is what istio-ingress/agentflow-gateway references as
+# `credentialName: agentflow-wildcard-tls`.
+########################################################################
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-bootstrap
+  namespace: cert-manager
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: agentflow-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: AgentFlow Demo Root CA
+  secretName: agentflow-root-ca
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  subject:
+    organizations:
+      - AgentFlow
+  issuerRef:
+    name: selfsigned-bootstrap
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: agentflow-ca
+spec:
+  ca:
+    # Read from `clusterResourceNamespace` (cert-manager), set in values.yaml.
+    secretName: agentflow-root-ca

@@ -22,6 +22,7 @@ import { AgentConfigPanel } from '../components/AgentConfigPanel';
 import { io, Socket } from 'socket.io-client';
 import RunsList from '../components/RunsList';
 import LogsTimeline from '../components/LogsTimeline';
+import { API_BASE_URL } from '../shared/lib/env';
 
 export default function DesignerPage() {
   const { agentId } = useParams<{ agentId: string }>();
@@ -83,8 +84,7 @@ export default function DesignerPage() {
   // Setup control socket
   useEffect(() => {
     if (!runId) return;
-    const base = import.meta.env.VITE_API_URL ?? window.location.origin;
-    const sock = io(base, { path: '/ws' });
+    const sock = io(API_BASE_URL, { path: '/ws' });
     setControlSocket(sock);
     return () => { sock.disconnect(); };
   }, [runId]);
@@ -92,8 +92,7 @@ export default function DesignerPage() {
   // Setup log socket
   useEffect(() => {
     if (!runId) return;
-    const base = import.meta.env.VITE_API_URL ?? window.location.origin;
-    const sock = io(`${base}/ws/flow`);
+    const sock = io(`${API_BASE_URL}/ws/flow`);
     sock.on('connect', () => sock.emit('join', { runId }));
     sock.on('tokens', () => setProgress(p => p + 1));
     setLogSocket(sock);
@@ -201,6 +200,7 @@ export default function DesignerPage() {
     condition: NodeBox,
     loop: NodeBox,
     agent: AgentBlockNode,
+    integration: NodeBox,
   }), []);
 
   useEffect(() => {
@@ -215,13 +215,11 @@ export default function DesignerPage() {
   }, [save]);
 
   return (
-    <div className="h-screen flex">
+    <div className="flex h-[calc(100vh-4rem)] bg-slate-50">
       <NodePalette onSelect={addNodeAtCenter} />
-      <div className="flex-1 flex flex-col">
-        <div className="p-2 bg-gray-100 flex gap-2">
-          <TestBar onSave={save} onRun={runFlow} onStep={stepFlow} onStop={stopFlow} progress={progress} />
-        </div>
-        <div className="flex-1 flex">
+      <div className="flex-1 flex flex-col min-w-0">
+        <TestBar onSave={save} onRun={runFlow} onStep={stepFlow} onStop={stopFlow} progress={progress} />
+        <div className="flex-1 flex min-h-0">
           <div className="flex-1">
             <div className="reactflow-wrapper flex-1 h-full">
               <ReactFlow
@@ -236,16 +234,33 @@ export default function DesignerPage() {
                 onNodeClick={onNodeClick}
                 onPaneClick={onPaneClick}
                 fitView
+                fitViewOptions={{ padding: 0.22 }}
                 onInit={setReactFlowInstance}
+                proOptions={{ hideAttribution: true }}
+                defaultEdgeOptions={{
+                  type: 'smoothstep',
+                  style: { stroke: '#c6ccd6', strokeWidth: 1.5 },
+                  labelStyle: { fill: '#5b6472', fontSize: 11, fontWeight: 500 },
+                  labelBgStyle: { fill: '#ffffff', fillOpacity: 0.95 },
+                  labelBgPadding: [6, 3] as [number, number],
+                  labelBgBorderRadius: 4,
+                }}
                 style={{ width: '100%', height: '100%' }}
               >
-                <MiniMap />
-                <Controls />
-                <Background />
+                <MiniMap
+                  className="!bg-white !border !border-line !rounded-lg !shadow-sm"
+                  maskColor="rgba(244,245,247,.8)"
+                  nodeColor={(n) => (n.data?.tool ? '#9a5b1f' : n.type === 'agent' ? '#2b4c8c' : '#c6ccd6')}
+                  nodeStrokeWidth={0}
+                  pannable
+                  zoomable
+                />
+                <Controls className="!shadow-sm !border !border-line !rounded-lg overflow-hidden" showInteractive={false} />
+                <Background gap={20} size={1} color="#d7dce4" />
               </ReactFlow>
             </div>
           </div>
-          <div className="side-panel w-64 p-2 border-l flex flex-col overflow-auto space-y-4">
+          <div className="side-panel w-[280px] shrink-0 p-4 border-l border-line bg-white flex flex-col overflow-auto gap-5">
             <NodeInspector node={nodes.find((n) => n.id === selectedNodeId)} updateNode={updateNode} />
             <AgentConfigPanel />
             {agentId && <RunsList agentId={agentId} />}

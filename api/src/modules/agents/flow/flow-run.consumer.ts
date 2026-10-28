@@ -6,7 +6,10 @@ import { FlowRun, FlowRunStatus } from './flow-run.entity';
 import { FlowRunNode } from './flow-run-node.entity';
 import { FlowService } from './flow.service';
 import { FlowEngineService } from '../../agent-runtime/flow-engine.service';
-import pricing from '../../../pricing.json';
+import { PricingService } from '../../pricing/pricing.service';
+
+/** Display-only conversion for the historical `euros` stat key. */
+const USD_TO_EUR = 0.92;
 
 @Injectable()
 export class FlowRunConsumer implements OnModuleInit {
@@ -18,10 +21,14 @@ export class FlowRunConsumer implements OnModuleInit {
     private readonly runNodeRepo: Repository<FlowRunNode>,
     private readonly flowService: FlowService,
     private readonly flowEngineService: FlowEngineService,
+    private readonly pricing: PricingService,
   ) {}
 
   onModuleInit() {
-    this.rabbitService.subscribe('flow.run', this.handleRun.bind(this));
+    // Durable shared queue: a run is executed by a single api replica.
+    this.rabbitService.subscribe('flow.run', this.handleRun.bind(this), {
+      queue: 'agentflow.flow-run',
+    });
   }
 
   private async handleRun(payload: { runId: string; input: any; agentId: string }) {
@@ -39,13 +46,14 @@ export class FlowRunConsumer implements OnModuleInit {
     const targetIds = flowDto.edges.map(e => e.target);
     const rootId = nodeIds.find(id => !targetIds.includes(id)) || nodeIds[0];
 
+    const model = this.pricing.normalizeModel(
+      (flowDto.nodes[0] as any)?.model,
+    );
     let tokenCount = 0;
-    let eurosTotal = 0;
 
     this.flowEngineService.runFlow(flowDto, input).subscribe({
       next: async (token: string) => {
         tokenCount++;
-        eurosTotal += pricing.default;
         const nodeEntry = this.runNodeRepo.create({
           run,
           extNodeId: rootId,
@@ -61,7 +69,14 @@ export class FlowRunConsumer implements OnModuleInit {
       },
       complete: async () => {
         run.status = FlowRunStatus.COMPLETED;
-        run.stats = { tokens: tokenCount, euros: eurosTotal };
+        const usd = this.pricing.costFor(model, tokenCount);
+        run.stats = {
+          tokens: tokenCount,
+          model,
+          usd,
+          // kept for the dashboard UI, which still reads `euros`
+          euros: usd * USD_TO_EUR,
+        };
         await this.runRepo.save(run);
       },
     });

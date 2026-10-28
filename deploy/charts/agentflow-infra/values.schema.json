@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "agentflow-infra values",
+  "description": "Stateful dependencies of the AgentFlow workloads. Unknown top-level keys are rejected on purpose: a typo in deploy/envs/<env>/infra.yaml must fail the render, not deploy silently.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["postgresql", "redis", "rabbitmq", "appSecrets"],
+  "properties": {
+    "global": {
+      "description": "Reserved for Helm when the chart is used as a dependency.",
+      "type": "object"
+    },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "commonLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+    "commonAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+    "postgresql": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cnpg"],
+      "properties": {
+        "cnpg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "name"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "name": { "type": "string", "minLength": 1 },
+            "instances": { "type": "integer", "minimum": 1 },
+            "imageName": { "type": "string" },
+            "primaryUpdateStrategy": { "type": "string", "enum": ["unsupervised", "supervised"] },
+            "skipDryRunOnMissingResource": { "type": "boolean" },
+            "enablePDB": { "type": "boolean" },
+            "storage": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["size"],
+              "properties": {
+                "size": { "type": "string" },
+                "storageClass": { "type": "string" }
+              }
+            },
+            "bootstrap": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "initdb": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "database": { "type": "string" },
+                    "owner": { "type": "string" },
+                    "postInitApplicationSQL": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            },
+            "parameters": { "type": "object", "additionalProperties": { "type": "string" } },
+            "monitoring": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enablePodMonitor": { "type": "boolean" },
+                "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+              }
+            },
+            "inheritedMetadata": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+                "labels": { "type": "object", "additionalProperties": { "type": "string" } }
+              }
+            },
+            "resources": { "type": "object" },
+            "serviceAccountAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+            "backup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["enabled"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "destinationPath": { "type": "string" },
+                "endpointURL": { "type": "string" },
+                "serverName": { "type": "string" },
+                "retentionPolicy": { "type": "string" },
+                "s3Credentials": { "type": "object" },
+                "wal": { "type": "object" },
+                "data": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "name"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string", "minLength": 1 },
+        "image": { "$ref": "#/definitions/image" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "persistence": { "$ref": "#/definitions/persistence" },
+        "resources": { "type": "object" },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array", "items": { "type": "object" } },
+        "affinity": { "type": "object" },
+        "priorityClassName": { "type": "string" }
+      }
+    },
+    "rabbitmq": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "name"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string", "minLength": 1 },
+        "image": { "$ref": "#/definitions/image" },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "username": { "type": "string", "minLength": 1 },
+            "password": { "type": "string" },
+            "vhost": { "type": "string" },
+            "existingSecret": { "type": "string" }
+          }
+        },
+        "ports": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amqp", "management", "metrics"],
+          "properties": {
+            "amqp": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "management": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "metrics": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        },
+        "plugins": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "extraConfig": { "type": "string" },
+        "definitions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "deadLetterExchange": { "type": "string" },
+            "appQueue": { "type": "string" },
+            "deadLetterQueue": { "type": "string" },
+            "declareAppQueue": { "type": "boolean" }
+          }
+        },
+        "managementIngress": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "host": { "type": "string" },
+            "gateways": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "persistence": { "$ref": "#/definitions/persistence" },
+        "resources": { "type": "object" },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array", "items": { "type": "object" } },
+        "affinity": { "type": "object" },
+        "priorityClassName": { "type": "string" }
+      }
+    },
+    "appSecrets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create"],
+      "properties": {
+        "create": { "type": "boolean" },
+        "apiSecretName": { "type": "string", "minLength": 1 },
+        "workerSecretName": { "type": "string", "minLength": 1 },
+        "brokerUrl": { "type": "string" },
+        "data": { "type": "object", "additionalProperties": { "type": "string" } },
+        "workerData": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "size": { "type": "string" },
+        "storageClass": { "type": "string" },
+        "accessModes": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

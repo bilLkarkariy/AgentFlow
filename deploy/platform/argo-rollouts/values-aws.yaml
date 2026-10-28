@@ -1,0 +1,19 @@
+########################################################################
+# Argo Rollouts - EKS overrides.
+#
+# The dashboard has no authentication, so it is not exposed on AWS.
+# `make aws-ui` port-forwards it, and `kubectl argo rollouts get rollout
+# agentflow-api -n agentflow -w` is the demo view.
+########################################################################
+
+dashboard:
+  enabled: false
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 512Mi

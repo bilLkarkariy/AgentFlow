@@ -1,0 +1,62 @@
+########################################################################
+# Stateful dependencies - aws.
+#
+# Wave -1: Redis and RabbitMQ exist before the first api pod (and before the
+# PreSync migration Job) starts. Postgres is RDS here, created by Terraform
+# and reached through the Secret `agentflow-db` that External Secrets
+# Operator projects into this namespace.
+#
+# The value files live outside the chart directory on purpose: one chart,
+# one values pair per environment, and CI bumps nothing here.
+########################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agentflow-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: agentflow
+    env: aws
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: agentflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agentflow
+  source:
+    repoURL: https://github.com/bilLkarkariy/AgentFlow.git
+    targetRevision: main
+    path: deploy/charts/agentflow-infra
+    helm:
+      releaseName: agentflow-infra
+      valueFiles:
+        - ../../envs/base/infra.yaml
+        - ../../envs/aws/infra.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    # No effect while postgresql.cnpg.enabled is false; kept so that turning
+    # the in-cluster database back on needs no change here. CloudNativePG
+    # defaults spec.imageName itself, which would otherwise diff for ever.
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      name: agentflow-db
+      namespace: agentflow
+      jsonPointers:
+        - /spec/imageName

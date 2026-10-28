@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: security
+    # Kyverno must never validate its own admission webhooks.
+    webhooks.kyverno.io/exclude: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: security
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  # Seeded by scripts/seed-local-secrets.sh locally, backed by AWS Secrets
+  # Manager on EKS. The ClusterSecretStore `agentflow` (WP9) reads from here.
+  name: platform-secrets
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/layer: security
+  annotations:
+    # Holds the seeded demo secrets; a prune here would wipe them.
+    argocd.argoproj.io/sync-options: Prune=false

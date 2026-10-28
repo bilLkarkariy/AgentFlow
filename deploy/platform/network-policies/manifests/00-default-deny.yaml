@@ -1,0 +1,50 @@
+########################################################################
+# Default deny for namespace agentflow (sync wave 17).
+#
+# ---------------------------------------------------------------------
+# READ THIS FIRST - does it actually enforce anything?
+# ---------------------------------------------------------------------
+# NetworkPolicy is an API, not an implementation: the CNI has to enforce
+# it.
+#
+#   kind (kindnet, the default CNI)  -> NOT enforced. The objects are
+#       accepted by the API server and do nothing. To make the local demo
+#       real, create the cluster with `disableDefaultCNI: true` and install
+#       Calico (`kubectl apply -f <calico manifest>`), or run
+#       `kind create cluster` with Cilium.
+#   EKS (VPC CNI)                    -> enforced when the aws-node addon
+#       runs with `enableNetworkPolicy: true` (set by the EKS Terraform,
+#       WP11). That is the environment where these files matter.
+#
+# So: on kind these are documentation and a lint target; on EKS they are
+# the real thing. Saying otherwise in an interview is a trap.
+#
+# ---------------------------------------------------------------------
+# Two more caveats
+# ---------------------------------------------------------------------
+# 1. NetworkPolicy is L3/L4 only. It says "pod X may open a TCP connection
+#    to pod Y on port Z", never "with a valid identity". Istio mTLS STRICT
+#    (PeerAuthentication, WP7) is the L7 half of the same story, and
+#    AuthorizationPolicy is what expresses "who may call what". The two
+#    layers are deliberately independent: a bug in one does not open the
+#    other.
+# 2. Kubelet health probes come from the node IP, not from a pod. Calico
+#    and the VPC CNI let host->pod traffic through by default (failsafe
+#    ports), which is why no policy below has to allow them.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  # Empty selector = every pod in the namespace.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress / egress rule at all: everything is denied, and the numbered
+  # policies next to this file add back exactly what AgentFlow needs.

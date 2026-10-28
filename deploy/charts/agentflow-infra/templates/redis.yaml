@@ -1,0 +1,162 @@
+{{- if .Values.redis.enabled }}
+{{- $r := .Values.redis }}
+{{- $ctx := dict "root" . "component" "redis" }}
+########################################################################
+# Redis: BullMQ queues and the Socket.IO adapter of the api.
+# One replica, AOF on a small PVC. No sidecar: raw TCP, nothing to route.
+########################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $r.name }}
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-redis
+      port: {{ $r.port }}
+      targetPort: tcp-redis
+      protocol: TCP
+  selector:
+    {{- include "agentflow-infra.selectorLabels" $ctx | nindent 4 }}
+---
+# Headless service backing the StatefulSet, so the pod keeps a stable DNS
+# name of its own (agentflow-redis-0.agentflow-redis-headless).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $r.name }}-headless
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-redis
+      port: {{ $r.port }}
+      targetPort: tcp-redis
+      protocol: TCP
+  selector:
+    {{- include "agentflow-infra.selectorLabels" $ctx | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $r.name }}
+  labels:
+    {{- include "agentflow-infra.labels" $ctx | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  serviceName: {{ $r.name }}-headless
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "agentflow-infra.selectorLabels" $ctx | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with $r.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "agentflow-infra.selectorLabels" $ctx | nindent 8 }}
+        app: redis
+        {{- with $r.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      {{- with $r.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with $r.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: redis
+          image: "{{ $r.image.repository }}:{{ $r.image.tag }}"
+          imagePullPolicy: {{ $r.image.pullPolicy }}
+          command: ["redis-server"]
+          {{- with $r.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: tcp-redis
+              containerPort: {{ $r.port }}
+              protocol: TCP
+          startupProbe:
+            exec:
+              command: ["redis-cli", "-p", {{ $r.port | quote }}, "ping"]
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "-p", {{ $r.port | quote }}, "ping"]
+            periodSeconds: 20
+            timeoutSeconds: 3
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-p", {{ $r.port | quote }}, "ping"]
+            periodSeconds: 10
+            timeoutSeconds: 3
+          {{- with $r.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $r.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- if not $r.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+      {{- with $r.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if $r.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "agentflow-infra.labels" $ctx | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml $r.persistence.accessModes | nindent 10 }}
+        {{- with $r.persistence.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $r.persistence.size }}
+  {{- end }}
+{{- end }}

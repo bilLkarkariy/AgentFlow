@@ -1,0 +1,41 @@
+########################################################################
+# istiod - EKS overrides.
+########################################################################
+
+# Two t4g.large Spot nodes: an HPA keeps istiod alive through a Spot
+# reclaim. The matching ignoreDifferences on spec.replicas lives in
+# deploy/platform/bootstrap/values-aws.yaml.
+autoscaleEnabled: true
+autoscaleMin: 1
+autoscaleMax: 2
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 768Mi
+  limits:
+    memory: 1536Mi
+
+global:
+  proxy:
+    resources:
+      requests:
+        cpu: 20m
+        memory: 96Mi
+      limits:
+        memory: 384Mi
+
+  # The istio-cni component (aws only) installs the CNI plugin, which removes
+  # the privileged istio-init container from every workload pod.
+  # TODO (WP12/WP13): keep in sync with componentOverrides.istio-cni.enabled.
+  platform: ""
+
+cni:
+  enabled: true
+  provider: default
+
+meshConfig:
+  defaultConfig:
+    tracing:
+      # 10 % on AWS: keeps the Tempo footprint (and the bill) small.
+      sampling: 10.0

@@ -9,9 +9,11 @@ import { Logger } from '@nestjs/common';
  */
 export function runAgentPython(input: Record<string, any>): Observable<string> {
   return new Observable<string>((observer) => {
-    const script = path.join(process.cwd(), 'python', 'agent_runner.py');
+    // PYTHON_SCRIPTS_DIR / PYTHON_BIN are set by the container image; the defaults keep dev behaviour.
+    const scriptsDir = process.env.PYTHON_SCRIPTS_DIR ?? path.join(process.cwd(), 'python');
+    const script = path.join(scriptsDir, 'agent_runner.py');
     const venvPython = path.join(process.cwd(), 'python', 'venv', 'bin', 'python');
-    const pythonBin = existsSync(venvPython) ? venvPython : 'python';
+    const pythonBin = process.env.PYTHON_BIN ?? (existsSync(venvPython) ? venvPython : 'python');
     const proc = spawn(pythonBin, ['-u', script], {
       env: process.env,
       stdio: ['pipe', 'pipe', 'pipe'],

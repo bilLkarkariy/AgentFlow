@@ -1,0 +1,21 @@
+{{- $minReplicas := int .Values.replicaCount }}
+{{- if .Values.hpa.enabled }}
+{{- $minReplicas = int .Values.hpa.minReplicas }}
+{{- end }}
+{{- if and .Values.pdb.enabled (ge $minReplicas 2) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "agentflow-service.fullname" . }}
+  labels:
+    {{- include "agentflow-service.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "agentflow-service.selectorLabels" . | nindent 6 }}
+{{- end }}

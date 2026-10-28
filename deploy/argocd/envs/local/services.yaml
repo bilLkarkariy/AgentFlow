@@ -1,0 +1,82 @@
+########################################################################
+# AgentFlow workloads - local.
+#
+# One ApplicationSet instead of four near-identical Applications: adding a
+# service is one line in the list generator plus two values files.
+#
+# Every generated Application renders the same golden-path chart
+# (deploy/charts/agentflow-service) with the pair
+# deploy/envs/base/<svc>.yaml + deploy/envs/local/<svc>.yaml. CI only ever
+# rewrites `image.tag` in the second file.
+#
+# The sync-wave annotation documents intent (api first, then the consumers
+# and the two SPAs). It does not order the Applications between themselves:
+# ApplicationSet-generated Applications are independent objects. The real
+# ordering guarantee is inside the api Application, whose PreSync migration
+# Job must succeed before any api pod is created.
+########################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: agentflow-services-local
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: agentflow
+    env: local
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    # A typo in the template must fail the render, not produce "<no value>".
+    - missingkey=error
+  generators:
+    - list:
+        elements:
+          - name: api
+            wave: "1"
+          - name: worker
+            wave: "2"
+          - name: dashboard
+            wave: "2"
+          - name: studio
+            wave: "2"
+  template:
+    metadata:
+      name: agentflow-{{ .name }}
+      annotations:
+        argocd.argoproj.io/sync-wave: "{{ .wave }}"
+      labels:
+        app.kubernetes.io/part-of: agentflow
+        agentflow.io/service: "{{ .name }}"
+        env: local
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: agentflow
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: agentflow
+      source:
+        repoURL: https://github.com/bilLkarkariy/AgentFlow.git
+        targetRevision: main
+        path: deploy/charts/agentflow-service
+        helm:
+          # Release name drives every object name: agentflow-api, and so on.
+          releaseName: agentflow-{{ .name }}
+          valueFiles:
+            - ../../envs/base/{{ .name }}.yaml
+            - ../../envs/local/{{ .name }}.yaml
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

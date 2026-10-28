@@ -1,0 +1,151 @@
+########################################################################
+# Dependency updates. Everything is weekly and grouped so the repository
+# gets a handful of reviewable PRs instead of a flood of single bumps.
+#
+# Note: an ecosystem entry whose directory does not exist yet is reported
+# as an error on the Dependabot dashboard. The terraform entries for
+# infra/envs/aws-demo and infra/bootstrap become live with the AWS work
+# packages (WP11-13).
+########################################################################
+version: 2
+
+updates:
+  # ------------------------------------------------------------------
+  # Node / pnpm workspace (single manifest tree at the root)
+  # ------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    labels:
+      - dependencies
+      - javascript
+
+  # ------------------------------------------------------------------
+  # Python
+  # ------------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /worker
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 3
+    groups:
+      worker-python:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - python
+
+  - package-ecosystem: pip
+    directory: /api/python
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 3
+    groups:
+      api-python:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - python
+
+  # ------------------------------------------------------------------
+  # Container base images (one entry per Dockerfile directory)
+  # ------------------------------------------------------------------
+  - package-ecosystem: docker
+    directories:
+      - /api
+      - /worker
+      - /web/studio
+      - /web/dashboard
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 4
+    groups:
+      base-images:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - docker
+
+  # ------------------------------------------------------------------
+  # GitHub Actions used by the workflows in this directory
+  # ------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns:
+          - '*'
+    commit-message:
+      prefix: ci(deps)
+    labels:
+      - dependencies
+      - github-actions
+
+  # ------------------------------------------------------------------
+  # Terraform providers and modules
+  # ------------------------------------------------------------------
+  - package-ecosystem: terraform
+    directories:
+      - /infra/envs/local
+      - /infra/envs/aws-demo
+      - /infra/bootstrap
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 3
+    groups:
+      terraform:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - terraform

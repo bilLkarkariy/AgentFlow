@@ -1,0 +1,158 @@
+########################################################################
+# Kyverno - shared values.
+# Chart: kyverno/kyverno (version pinned in deploy/versions.yaml).
+#
+# Scope of this install: admission-time policy enforcement for the
+# `agentflow` namespace only (see policies/). Everything that is not
+# needed for that is switched off to keep the kind cluster small:
+#   - reports controller  -> no PolicyReports (see features.* below)
+#   - cleanup controller  -> no CleanupPolicy support
+#   - Grafana dashboard   -> WP8 owns the dashboards
+########################################################################
+
+# Helm owns the CRDs so ArgoCD can diff them like any other resource.
+crds:
+  install: true
+  reportsServer:
+    enabled: false
+
+# --------------------------------------------------------------------
+# Webhook scope.
+#
+# The admission webhooks must never fire on the platform namespaces:
+# a Kyverno outage there would deadlock the whole cluster (ArgoCD could
+# not reconcile Kyverno itself, istiod could not restart, ...).
+# `config.webhooks.namespaceSelector` is rendered verbatim into the
+# ValidatingWebhookConfiguration / MutatingWebhookConfiguration.
+# --------------------------------------------------------------------
+config:
+  webhooks:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kyverno
+            - argocd
+            - istio-system
+            - istio-ingress
+            - cert-manager
+            - observability
+            - external-secrets
+            - argo-rollouts
+            - cnpg-system
+  # Kyverno excludes its own namespace by default; keep it explicit.
+  excludeKyvernoNamespace: true
+
+features:
+  # PolicyException is the documented escape hatch. Exceptions may only
+  # live in the kyverno namespace, so a workload team cannot exempt
+  # itself by shipping a CR next to its Deployment.
+  policyExceptions:
+    enabled: true
+    namespace: kyverno
+
+  # No reports controller runs (see below), so nothing would ever consume
+  # the ephemeral reports the admission controller produces. Turning the
+  # report features off avoids piling up EphemeralReport objects in etcd.
+  admissionReports:
+    enabled: false
+  aggregateReports:
+    enabled: false
+  policyReports:
+    enabled: false
+  validatingAdmissionPolicyReports:
+    enabled: false
+  backgroundScan:
+    enabled: false
+
+  logging:
+    format: text
+    verbosity: 2
+
+# --------------------------------------------------------------------
+# Controllers.
+# --------------------------------------------------------------------
+admissionController:
+  replicas: 1
+
+  podLabels:
+    # The chart already sets app.kubernetes.io/part-of: kyverno; use the
+    # platform-wide layer label instead of colliding with it.
+    agentflow.io/layer: security
+
+  # WP8 scrapes annotated pods with a Prometheus ScrapeConfig; the
+  # metrics server listens on 8000 (admissionController.metricsService.port).
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: /metrics
+
+  serviceMonitor:
+    enabled: false
+
+  container:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 384Mi
+
+  initContainer:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
+  podDisruptionBudget:
+    enabled: false
+
+backgroundController:
+  # Needed by `spec.background: true` policies (background reconciliation
+  # of generate / mutateExisting rules). Cheap: one small pod.
+  enabled: true
+  replicas: 1
+
+  podLabels:
+    # The chart already sets app.kubernetes.io/part-of: kyverno; use the
+    # platform-wide layer label instead of colliding with it.
+    agentflow.io/layer: security
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: /metrics
+
+  serviceMonitor:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+
+  podDisruptionBudget:
+    enabled: false
+
+reportsController:
+  # PolicyReports are a nice-to-have; on a 10 GB kind cluster they are the
+  # single most expensive Kyverno component. Denials are still visible in
+  # the API response and in the admission controller logs.
+  enabled: false
+
+cleanupController:
+  # No CleanupPolicy / ClusterCleanupPolicy is shipped by this repo.
+  enabled: false
+
+# WP8 owns Grafana; the bundled Kyverno dashboard is not wired in.
+grafana:
+  enabled: false
+
+prometheusRule:
+  enabled: false

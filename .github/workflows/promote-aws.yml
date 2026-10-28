@@ -1,0 +1,150 @@
+########################################################################
+# Manual promotion of an already-built, already-signed image tag to the
+# AWS environment. Nothing is built here: the workflow only rewrites
+# `.image.tag` in deploy/envs/aws/*.yaml and opens a pull request, so the
+# AWS environment always moves through a reviewed commit on main.
+########################################################################
+name: Promote to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to promote (e.g. sha-1a2b3c4). Defaults to the tag currently running in the local env.'
+        required: false
+        type: string
+
+concurrency:
+  group: gitops-promote-aws
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: open the promotion PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the tag to promote
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ]; then
+            source_file=deploy/envs/local/api.yaml
+            if [ ! -f "$source_file" ]; then
+              echo "::error::no tag was given and ${source_file} does not exist"
+              exit 1
+            fi
+            tag="$(yq -r '.image.tag // ""' "$source_file")"
+          fi
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "::error::could not resolve an image tag to promote"
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "promoting ${tag}"
+
+      - name: Bump the AWS values
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! compgen -G 'deploy/envs/aws/*.yaml' > /dev/null; then
+            echo "::error::deploy/envs/aws holds no values file"
+            exit 1
+          fi
+          bumped=0
+          for file in deploy/envs/aws/*.yaml; do
+            current="$(yq -r '.image.tag // ""' "$file")"
+            if [ -z "$current" ] || [ "$current" = "null" ]; then
+              echo "::notice::${file} has no .image.tag, leaving it alone"
+              continue
+            fi
+            yq -i ".image.tag = \"${TAG}\"" "$file"
+            echo "bumped ${file}: ${current} -> ${TAG}"
+            bumped=$(( bumped + 1 ))
+          done
+          if [ "$bumped" -eq 0 ]; then
+            echo "::error::no values file carried an .image.tag"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The digests are informative: reviewers can pin the exact index the
+      # PR promotes. Resolution is best effort so a missing package or a
+      # transient registry error never blocks the promotion.
+      - name: Build the PR body
+        id: body
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          owner="${OWNER,,}"
+          body="${RUNNER_TEMP}/pr-body.md"
+          {
+            echo "Promotes \`${TAG}\` to the AWS environment."
+            echo
+            echo "### Images"
+            echo
+            echo "| service | reference | index digest |"
+            echo "| --- | --- | --- |"
+          } > "$body"
+          for svc in api worker studio dashboard; do
+            image="ghcr.io/${owner}/agentflow-${svc}"
+            digest="$(docker buildx imagetools inspect "${image}:${TAG}" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest' || true)"
+            [ -n "$digest" ] && [ "$digest" != "null" ] || digest="_unresolved_"
+            echo "| ${svc} | \`${image}:${TAG}\` | \`${digest}\` |" >> "$body"
+          done
+          {
+            echo
+            echo "### Verify the signatures before merging"
+            echo
+            echo '```bash'
+            for svc in api worker studio dashboard; do
+              echo "cosign verify \\"
+              echo "  --certificate-identity-regexp 'https://github.com/bilLkarkariy/AgentFlow/' \\"
+              echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
+              echo "  ghcr.io/${owner}/agentflow-${svc}:${TAG}"
+            done
+            echo '```'
+            echo
+            echo "Merging this PR makes ArgoCD roll the AWS environment onto \`${TAG}\`."
+          } >> "$body"
+          echo "path=${body}" >> "$GITHUB_OUTPUT"
+
+      - name: Create the pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: promote/aws-${{ steps.tag.outputs.tag }}
+          base: main
+          delete-branch: true
+          commit-message: 'chore(gitops): promote ${{ steps.tag.outputs.tag }} to aws'
+          title: 'chore(gitops): promote ${{ steps.tag.outputs.tag }} to aws'
+          body-path: ${{ steps.body.outputs.path }}
+          labels: |
+            gitops
+            aws
+          add-paths: |
+            deploy/envs/aws

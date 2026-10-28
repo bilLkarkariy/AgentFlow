@@ -1,0 +1,58 @@
+########################################################################
+# Argo Rollouts - progressive delivery controller (wave 7).
+# Chart: argo/argo-rollouts (see deploy/versions.yaml).
+#
+# The ClusterAnalysisTemplate consumed by the api canary lives in
+# manifests/cluster-analysis-templates.yaml (wave 8).
+########################################################################
+
+installCRDs: true
+keepCRDs: true
+clusterInstall: true
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      memory: 256Mi
+  metrics:
+    # Creates the metrics Service on :8090 (rollout_info, analysis_run_info).
+    enabled: true
+    serviceMonitor:
+      # WP8 scrapes through the annotated-pods ScrapeConfig instead.
+      enabled: false
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8090"
+    prometheus.io/path: /metrics
+  podLabels:
+    app.kubernetes.io/part-of: agentflow-platform
+  logging:
+    level: info
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Istio is the only traffic router used here; the Istio API version is
+# discovered by the controller, no --istio-api-version flag needed.
+providerRBAC:
+  enabled: true
+
+dashboard:
+  # Off by default; the local profile turns it on (see values-local.yaml).
+  enabled: false
+
+notifications:
+  enabled: false

@@ -1,61 +1,76 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bars3Icon, ChevronDownIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import {
+  Bars3Icon,
+  ChevronDownIcon,
+  UserCircleIcon,
+  BookOpenIcon,
+  Squares2X2Icon,
+  LifebuoyIcon,
+} from '@heroicons/react/24/outline';
 
 interface TopbarProps {
   onToggleSidebar?: () => void;
 }
 
+const links = [
+  { to: '/marketplace', label: 'Marketplace', Icon: Squares2X2Icon },
+  { to: '/templates', label: 'Modèles', Icon: BookOpenIcon },
+  { to: '/help', label: 'Aide', Icon: LifebuoyIcon },
+];
+
 const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
-  const [studioOpen, setStudioOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const studioRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (studioRef.current && !studioRef.current.contains(e.target as Node)) setStudioOpen(false);
+    const onClickOutside = (e: MouseEvent) => {
       if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) setAvatarOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
   return (
-    <header className="h-16 bg-white border-b flex items-center px-6 justify-between relative z-10">
-      <div className="flex items-center">
+    <header className="h-16 shrink-0 bg-white border-b border-line flex items-center px-5 justify-between relative z-10">
+      <div className="flex items-center gap-1">
         {onToggleSidebar && (
-          <button onClick={onToggleSidebar} className="lg:hidden mr-4">
-            <Bars3Icon className="h-6 w-6 text-gray-800" />
+          <button
+            onClick={onToggleSidebar}
+            title="Ouvrir le menu"
+            className="lg:hidden mr-2 p-1.5 rounded-md text-inkmute hover:bg-canvas"
+          >
+            <Bars3Icon className="w-5 h-5" strokeWidth={1.7} />
           </button>
         )}
-        <div ref={studioRef} className="relative">
-          <button onClick={() => setStudioOpen(!studioOpen)} className="flex items-center text-gray-800">
-            AgentFlow <ChevronDownIcon className="h-4 w-4 ml-1" />
-          </button>
-          {studioOpen && (
-            <div className="absolute left-0 mt-2 bg-white shadow-lg rounded border w-40">
-              <Link to="/dashboard" className="block px-4 py-2 hover:bg-gray-100">Dashboard</Link>
-              <Link to="/flows" className="block px-4 py-2 hover:bg-gray-100">Flows</Link>
-            </div>
-          )}
-        </div>
-        <nav className="ml-8 flex items-center space-x-4">
-          <Link to="/dashboard" className="text-gray-600 hover:text-gray-800">Dashboard</Link>
-          <Link to="/marketplace" className="text-gray-600 hover:text-gray-800">Marketplace</Link>
-          <Link to="/help" className="text-gray-600 hover:text-gray-800">Aide</Link>
+        <nav className="flex items-center gap-0.5">
+          {links.map(({ to, label, Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="flex items-center gap-1.5 px-2.5 h-8 rounded-md text-[13px] text-inkmute hover:text-ink hover:bg-canvas transition-colors"
+            >
+              <Icon className="w-[15px] h-[15px]" strokeWidth={1.7} />
+              {label}
+            </Link>
+          ))}
         </nav>
       </div>
+
       <div ref={avatarRef} className="relative">
-        <button onClick={() => setAvatarOpen(!avatarOpen)} className="flex items-center">
-          <UserCircleIcon className="h-8 w-8 text-gray-800" />
-          <ChevronDownIcon className="h-4 w-4 ml-1" />
+        <button
+          onClick={() => setAvatarOpen(!avatarOpen)}
+          className="flex items-center gap-1 pl-1 pr-1.5 h-9 rounded-md hover:bg-canvas transition-colors"
+        >
+          <UserCircleIcon className="w-7 h-7 text-inkmute" strokeWidth={1.4} />
+          <ChevronDownIcon className="w-3.5 h-3.5 text-inkmute" strokeWidth={2} />
         </button>
         {avatarOpen && (
-          <div className="absolute right-0 mt-2 bg-white shadow-lg rounded border w-40">
-            <Link to="/profile" className="block px-4 py-2 hover:bg-gray-100">Profile</Link>
-            <Link to="/settings" className="block px-4 py-2 hover:bg-gray-100">Paramètres</Link>
-            <button className="w-full text-left px-4 py-2 hover:bg-gray-100">Se déconnecter</button>
+          <div className="absolute right-0 mt-1.5 bg-white shadow-lg shadow-ink/5 rounded-lg border border-line w-44 py-1 overflow-hidden">
+            <Link to="/profile" className="block px-3 py-2 text-[13px] text-ink hover:bg-canvas">Profil</Link>
+            <Link to="/settings" className="block px-3 py-2 text-[13px] text-ink hover:bg-canvas">Paramètres</Link>
+            <div className="h-px bg-line my-1" />
+            <button className="w-full text-left px-3 py-2 text-[13px] text-ink hover:bg-canvas">Se déconnecter</button>
           </div>
         )}
       </div>

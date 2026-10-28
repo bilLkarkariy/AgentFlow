@@ -1,0 +1,114 @@
+########################################################################
+# agentflow-dashboard - values shared by every environment.
+#
+# Same shape as studio (static SPA on nginx-unprivileged), plus the two
+# runtime keys the DLQ console needs.
+########################################################################
+
+appLabel: dashboard
+
+image:
+  repository: ghcr.io/billkarkariy/agentflow-dashboard
+  pullPolicy: IfNotPresent
+
+containerPort: 8080
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  appProtocol: http
+
+rollout:
+  enabled: true
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: { duration: 60s }
+      - setWeight: 50
+      - pause: { duration: 60s }
+    maxSurge: "25%"
+    maxUnavailable: 0
+    abortScaleDownDelaySeconds: 30
+    trafficRouting:
+      istio:
+        enabled: true
+    analysis:
+      enabled: false
+
+runtimeConfig:
+  enabled: true
+  values:
+    # `<vhost>/<queue>` path fragment of the RabbitMQ management UI; %2F is
+    # the URL-encoded default vhost "/". Must match the DLQ declared by
+    # deploy/charts/agentflow-infra (rabbitmq.definitions.deadLetterQueue).
+    DLQ_QUEUE: "%2F/agentflow.flow-run.dlq"
+    # API_BASE_URL and RABBITMQ_MGMT_URL are per environment.
+
+probes:
+  startup:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+podAnnotations:
+  proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+serviceMonitor:
+  enabled: false
+
+istio:
+  virtualService:
+    enabled: true
+    gateways:
+      - istio-ingress/agentflow-gateway
+    # hosts: per environment.
+    timeout: 30s
+    retries:
+      attempts: 2
+      retryOn: "connect-failure,refused-stream,reset"
+  destinationRule:
+    enabled: true
