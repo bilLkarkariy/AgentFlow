@@ -6,7 +6,7 @@
 # Stage 1 : compile the NestJS app and materialise a production node_modules.
 # Runs on the builder architecture: the output is plain JS, no native module.
 # ---------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:25-bookworm-slim AS build
 
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH" \
