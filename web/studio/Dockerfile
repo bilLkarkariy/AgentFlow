@@ -36,7 +36,7 @@ RUN pnpm --filter studio run build
 # ---------------------------------------------------------------------------
 # Stage 2 - runtime (nginx as uid 101 on port 8080, read-only rootfs friendly)
 # ---------------------------------------------------------------------------
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 # Pick up Alpine security fixes newer than the base tag (openssl and friends).
 USER root
 RUN apk upgrade --no-cache
