@@ -108,6 +108,9 @@ jobs:
       - name: Unit tests (studio)
         run: pnpm --filter studio run test:unit
 
+      - name: Unit tests (dashboard)
+        run: pnpm --filter dashboard run test:unit
+
       - name: E2E tests (api)
         env:
           REDIS_HOST: localhost
