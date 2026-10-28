@@ -235,7 +235,13 @@ else
   run "${REPO_ROOT}/scripts/aws-render-env.sh" --tf-dir "$TF_ABS"
 
   BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
-  [[ "$BRANCH" != "HEAD" ]] || die "detached HEAD: check out the branch ArgoCD follows first"
+  if [[ "$BRANCH" == "HEAD" ]]; then
+    # A pull request checkout in CI is detached; a dry run pushes nothing,
+    # so it only needs a branch name to print.
+    [[ "$DRY_RUN" == "1" ]] || die "detached HEAD: check out the branch ArgoCD follows first"
+    BRANCH="$GITOPS_REV"
+    warn "detached HEAD; the dry run assumes branch ${BRANCH}"
+  fi
 
   run git -C "$REPO_ROOT" add -- "${rendered[@]}"
 
