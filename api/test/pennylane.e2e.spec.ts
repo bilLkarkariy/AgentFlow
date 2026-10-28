@@ -4,16 +4,15 @@ import * as dotenv from 'dotenv';
 // charger .env racine pour PENNYLANE
 dotenv.config({ path: path.resolve(__dirname,'../../.env') });
 
-// ensure API token present
-const token = process.env.PENNYLANE_API_TOKEN!;
-if (!token) throw new Error('PENNYLANE_API_TOKEN not set in .env');
+// Calls the live Pennylane API: runs only when PENNYLANE_API_TOKEN is set.
+const describeWithPennylane = process.env.PENNYLANE_API_TOKEN ? describe : describe.skip;
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
 
-describe('PennylaneModule (e2e)', () => {
+describeWithPennylane('PennylaneModule (e2e)', () => {
   let app: INestApplication;
   beforeAll(async () => {
     const mod: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();

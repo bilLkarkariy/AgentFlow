@@ -3,7 +3,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../src/modules/app.module';
 
-describe('StripeModule (e2e)', () => {
+// Calls the live Stripe API: runs only when a (test mode) key is configured.
+const describeWithStripe = process.env.STRIPE_SECRET_KEY ? describe : describe.skip;
+
+describeWithStripe('StripeModule (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {

@@ -7,11 +7,13 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
 
-// Ensure SLACK_BOT_TOKEN and SLACK_E2E_CHANNEL are set in your .env
+// Posts to a real Slack workspace: runs only when SLACK_BOT_TOKEN is set
+// (and SLACK_E2E_CHANNEL, default #e2e) in your .env.
 const channel = process.env.SLACK_E2E_CHANNEL || '#e2e';
 const text = `E2E test ${Date.now()}`;
+const describeWithSlack = process.env.SLACK_BOT_TOKEN ? describe : describe.skip;
 
-describe('SlackModule (e2e)', () => {
+describeWithSlack('SlackModule (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {

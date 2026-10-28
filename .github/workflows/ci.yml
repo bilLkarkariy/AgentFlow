@@ -90,6 +90,10 @@ jobs:
           wait_for redis redis-cli ping
           wait_for rabbitmq rabbitmq-diagnostics -q ping
 
+      # flow-run.e2e.spec.ts needs a real Postgres database it can drop.
+      - name: Create the e2e database
+        run: docker compose exec -T postgres createdb -U postgres agentflow_test
+
       - name: Lint
         run: pnpm lint
 
@@ -108,12 +112,17 @@ jobs:
       - name: Unit tests (studio)
         run: pnpm --filter studio run test:unit
 
+      - name: Unit tests (dashboard)
+        run: pnpm --filter dashboard run test:unit
+
       - name: E2E tests (api)
         env:
           REDIS_HOST: localhost
           REDIS_PORT: '6379'
           NODE_OPTIONS: --max-old-space-size=2048
-        run: pnpm --filter @agentflow/api run test:e2e -- --runInBand
+        # No `--` before the flag: pnpm would pass it through to Jest, which
+        # then reads both as test path patterns and finds no test at all.
+        run: pnpm --filter @agentflow/api run test:e2e --runInBand
 
       - name: Stop backing services
         if: always()
