@@ -100,3 +100,7 @@ pnpm --filter web/dashboard run test
 ## Status
 
 Public technical showcase repository focused on architecture, reliability, and production-ready agent workflow patterns.
+
+## License
+
+Open source under the [MIT License](LICENSE).
