@@ -4,6 +4,6 @@
 ########################################################################
 
 image:
-  tag: sha-a0bdef9
+  tag: sha-ef4370c
 config:
   DEPLOY_ENV: local
