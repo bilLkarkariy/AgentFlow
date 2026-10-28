@@ -35,20 +35,20 @@ describe('AgentBlockNode', () => {
     mockConnectToRun.mockReset();
   });
 
-  it('enables Simulate button when prompt is empty', () => {
+  it('enables the simulate button when prompt is empty', () => {
     mockUseAgentRun.mockReturnValue(jest.fn());
     renderWithProvider(<AgentBlockNode {...defaultProps} />);
-    const btn = screen.getByRole('button', { name: /simulate/i });
+    const btn = screen.getByRole('button', { name: /simuler/i });
     expect(btn).toBeEnabled();
   });
 
   it('shows error message on empty prompt simulate', async () => {
     mockUseAgentRun.mockReturnValue(jest.fn());
     renderWithProvider(<AgentBlockNode {...defaultProps} />);
-    const btn = screen.getByRole('button', { name: /simulate/i });
+    const btn = screen.getByRole('button', { name: /simuler/i });
     fireEvent.click(btn);
-    await waitFor(() => screen.getByText(/Prompt is required/i));
-    expect(screen.getByText(/Prompt is required/i)).toBeInTheDocument();
+    await waitFor(() => screen.getByText(/pas de consigne/i));
+    expect(screen.getByText(/pas de consigne/i)).toBeInTheDocument();
   });
 
   it('renders result on successful run', async () => {
@@ -56,7 +56,7 @@ describe('AgentBlockNode', () => {
     mockUseAgentRun.mockReturnValue(mockRun);
     const data = { prompt: 'hello' };
     renderWithProvider(<AgentBlockNode {...defaultProps} data={data} />);
-    const btn = screen.getByRole('button', { name: /simulate/i });
+    const btn = screen.getByRole('button', { name: /simuler/i });
     fireEvent.click(btn);
     await waitFor(() => expect(mockRun).toHaveBeenCalledWith({agentId: "1", prompt: 'hello', model: undefined, temperature: undefined }));
     await waitFor(() => screen.getByText(/OK/));
@@ -68,7 +68,7 @@ describe('AgentBlockNode', () => {
     mockUseAgentRun.mockReturnValue(mockRun);
     const data = { prompt: 'hi' };
     renderWithProvider(<AgentBlockNode {...defaultProps} data={data} />);
-    const btn = screen.getByRole('button', { name: /simulate/i });
+    const btn = screen.getByRole('button', { name: /simuler/i });
     fireEvent.click(btn);
     await waitFor(() => screen.getByText(/fail/));
     expect(screen.getByText(/fail/)).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe('AgentBlockNode', () => {
 
     const data = { prompt: 'hi' };
     renderWithProvider(<AgentBlockNode {...defaultProps} data={data} />);
-    const btn = screen.getByRole('button', { name: /simulate/i });
+    const btn = screen.getByRole('button', { name: /simuler/i });
     fireEvent.click(btn);
 
     await waitFor(() => expect(mockRun).toHaveBeenCalledWith({ agentId: "1", prompt: 'hi', model: undefined, temperature: undefined }));

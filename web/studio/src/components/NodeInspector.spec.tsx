@@ -10,7 +10,7 @@ describe('NodeInspector', () => {
     const { getByText } = render(
       <NodeInspector node={undefined} updateNode={updateNode} />
     );
-    expect(getByText('Select a node')).toBeInTheDocument();
+    expect(getByText(/Sélectionnez un bloc/)).toBeInTheDocument();
   });
 
   it('renders form fields for emailSend node and calls update on change', () => {

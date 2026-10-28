@@ -21,7 +21,7 @@ describe('NodeBox', () => {
         <NodeBox id="1" type="start" data={{}} xPos={0} yPos={0} selected={false} zIndex={0} isConnectable={false} dragging={false} />
       </ReactFlowProvider>
     );
-    expect(getByText('Start')).toBeInTheDocument();
+    expect(getByText('Départ')).toBeInTheDocument();
     expect(container.querySelectorAll('.react-flow__handle').length).toBe(1);
   });
 
