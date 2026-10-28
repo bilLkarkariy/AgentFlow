@@ -1,0 +1,60 @@
+########################################################################
+# Two ways of running as root, both denied by require-run-as-nonroot.
+########################################################################
+# 1. No securityContext anywhere -> the image's USER decides, which for
+#    most base images is root. Denied by rule containers-run-as-nonroot.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-root
+  namespace: agentflow
+  labels:
+    app: worker
+spec:
+  containers:
+    - name: worker
+      image: ghcr.io/billkarkariy/agentflow-worker:sha-abc1234
+      resources:
+        limits:
+          memory: 512Mi
+        requests:
+          cpu: 50m
+---
+# 2. A non-Istio init container that opts out of non-root. The `istio-init`
+#    exemption is by name, so this one is still denied by rule
+#    init-containers-run-as-nonroot.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-root-init
+  namespace: agentflow
+  labels:
+    app: worker
+spec:
+  securityContext:
+    runAsNonRoot: true
+  initContainers:
+    - name: chown-data
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - chown -R 0:0 /data
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+      resources:
+        limits:
+          memory: 64Mi
+        requests:
+          cpu: 10m
+  containers:
+    - name: worker
+      image: ghcr.io/billkarkariy/agentflow-worker:sha-abc1234
+      securityContext:
+        runAsNonRoot: true
+      resources:
+        limits:
+          memory: 512Mi
+        requests:
+          cpu: 50m

@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars (gitignored) or export TF_VAR_* instead.
+#
+#   cp infra/bootstrap/terraform.tfvars.example infra/bootstrap/terraform.tfvars
+#
+# scripts/aws-bootstrap.sh only needs ALERT_EMAIL in the environment, so a
+# tfvars file is optional.
+
+# Required. Receives AWS Budgets and Cost Anomaly Detection mails.
+# The anomaly subscription sends a confirmation mail: accept it once.
+alert_email = "you@example.com"
+
+# Optional, defaults shown.
+# region              = "eu-west-1"
+# github_repo         = "bilLkarkariy/AgentFlow"
+# monthly_budget_usd  = 15
+# daily_budget_usd    = 3
+# state_bucket_prefix = "agentflow-tfstate"
+#
+# noncurrent_version_retention_days = 30
+# anomaly_threshold_usd             = 5

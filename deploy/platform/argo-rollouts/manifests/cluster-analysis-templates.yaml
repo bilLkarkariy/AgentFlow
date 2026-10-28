@@ -1,0 +1,77 @@
+########################################################################
+# ClusterAnalysisTemplate consumed by the api Rollout (plan Annexe C).
+#
+# The Rollout passes:
+#   workload        agentflow-api
+#   namespace       agentflow
+#   canary-version  metadata.labels['version'], i.e. the image tag
+#
+# Both metrics run as background analysis from step 1. Two consecutive
+# failures (failureLimit: 2) abort the rollout, Argo Rollouts shifts 100 %
+# of the traffic back to the stable subset, and `make demo-break` is exactly
+# that path.
+#
+# `or vector(1)` / `isNaN(result[0])` guard the first 30 seconds, when the
+# canary has not served a single request yet and the query returns no
+# series: no data must not read as a failure.
+########################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate
+metadata:
+  name: istio-success-rate
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: argo-rollouts-config
+spec:
+  args:
+    - name: workload
+    - name: namespace
+    - name: canary-version
+    - name: prometheus-url
+      value: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+
+  metrics:
+    - name: success-rate
+      interval: 30s
+      # Give the canary one interval before the first verdict.
+      initialDelay: 30s
+      failureLimit: 2
+      successCondition: "isNaN(result[0]) || result[0] >= 0.95"
+      provider:
+        prometheus:
+          address: "{{args.prometheus-url}}"
+          query: |
+            (
+              sum(irate(istio_requests_total{
+                reporter="destination",
+                destination_workload="{{args.workload}}",
+                destination_workload_namespace="{{args.namespace}}",
+                destination_canonical_revision="{{args.canary-version}}",
+                response_code!~"5.."
+              }[2m]))
+              /
+              sum(irate(istio_requests_total{
+                reporter="destination",
+                destination_workload="{{args.workload}}",
+                destination_workload_namespace="{{args.namespace}}",
+                destination_canonical_revision="{{args.canary-version}}"
+              }[2m]))
+            ) or vector(1)
+
+    - name: p95-latency-ms
+      interval: 30s
+      initialDelay: 30s
+      failureLimit: 2
+      successCondition: "isNaN(result[0]) || result[0] < 1000"
+      provider:
+        prometheus:
+          address: "{{args.prometheus-url}}"
+          query: |
+            histogram_quantile(0.95,
+              sum(irate(istio_request_duration_milliseconds_bucket{
+                reporter="destination",
+                destination_workload="{{args.workload}}",
+                destination_workload_namespace="{{args.namespace}}",
+                destination_canonical_revision="{{args.canary-version}}"
+              }[2m])) by (le)
+            ) or vector(0)

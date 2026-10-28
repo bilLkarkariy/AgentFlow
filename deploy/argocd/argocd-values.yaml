@@ -1,0 +1,190 @@
+########################################################################
+# ArgoCD - values shared by every environment.
+# Chart: argo/argo-cd (version pinned in deploy/versions.yaml).
+#
+# Applied by Terraform (infra/envs/local, infra/envs/aws-demo) together
+# with argocd-values-<env>.yaml and the rendered root Application.
+########################################################################
+
+crds:
+  install: true
+  keep: true
+
+global:
+  # Reduce the log noise on a laptop-sized cluster.
+  logging:
+    format: text
+    level: warn
+
+configs:
+  params:
+    # Istio terminates TLS at the gateway; the ArgoCD server must not try to
+    # do its own TLS or the VirtualService gets a 502 / redirect loop.
+    server.insecure: true
+    # One shard is plenty for a demo cluster.
+    controller.status.processors: 10
+    controller.operation.processors: 5
+    reposerver.parallelism.limit: 2
+
+  cm:
+    # ------------------------------------------------------------------
+    # App-of-apps: without this Lua health check an Application resource
+    # is always reported Healthy, so sync waves in deploy/platform/bootstrap
+    # would not wait for the previous wave to converge.
+    # Snippet from the ArgoCD docs (operator-manual/health.md).
+    # ------------------------------------------------------------------
+    resource.customizations.health.argoproj.io_Application: |
+      hs = {}
+      hs.status = "Progressing"
+      hs.message = ""
+      if obj.status ~= nil then
+        if obj.status.health ~= nil then
+          hs.status = obj.status.health.status
+          if obj.status.health.message ~= nil then
+            hs.message = obj.status.health.message
+          end
+        end
+      end
+      return hs
+
+    # ------------------------------------------------------------------
+    # Argo Rollouts owns the canary weights on the VirtualService and the
+    # rollouts-pod-template-hash on the DestinationRule subsets. Without
+    # these, ArgoCD fights the Rollouts controller mid-canary.
+    # jqPathExpressions (not jsonPointers) because RFC 6901 pointers have
+    # no wildcard for array indexes.
+    # ------------------------------------------------------------------
+    resource.customizations.ignoreDifferences.networking.istio.io_VirtualService: |
+      jqPathExpressions:
+        - .spec.http[].route[].weight
+    resource.customizations.ignoreDifferences.networking.istio.io_DestinationRule: |
+      jqPathExpressions:
+        - .spec.subsets[].labels."rollouts-pod-template-hash"
+
+    # cert-manager's cainjector and the Istio / Kyverno webhooks patch their
+    # own caBundle after creation.
+    resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    resource.customizations.ignoreDifferences.admissionregistration.k8s.io_ValidatingWebhookConfiguration: |
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    resource.customizations.ignoreDifferences.apiregistration.k8s.io_APIService: |
+      jqPathExpressions:
+        - .spec.caBundle
+
+    # CRD .status is written by the API server, never by us.
+    resource.compareoptions: |
+      ignoreResourceStatusField: crd
+
+    # Faster feedback during a demo than the 120s default.
+    timeout.reconciliation: 60s
+    timeout.reconciliation.jitter: 15s
+
+    admin.enabled: true
+    exec.enabled: false
+
+  rbac:
+    policy.default: role:readonly
+
+########################################################################
+# Components. Every request/limit is sized for a 10 GiB / 6 vCPU VM.
+########################################################################
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      # WP8 scrapes through the `annotated-pods` ScrapeConfig; enabling the
+      # ServiceMonitor here would fail before kube-prometheus-stack exists.
+      enabled: false
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8082"
+    prometheus.io/path: /metrics
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 768Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8084"
+    prometheus.io/path: /metrics
+
+server:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8083"
+    prometheus.io/path: /metrics
+  service:
+    type: ClusterIP
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+  metrics:
+    enabled: false
+
+applicationSet:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 96Mi
+    limits:
+      memory: 256Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: /metrics
+
+notifications:
+  enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  metrics:
+    enabled: false
+
+# No SSO on a demo cluster: local admin only.
+dex:
+  enabled: false

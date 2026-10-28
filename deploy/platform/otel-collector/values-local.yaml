@@ -1,0 +1,15 @@
+########################################################################
+# OTel Collector - kind / OrbStack overrides.
+#
+# Sampling is 100% locally (OTEL_TRACES_SAMPLER_ARG=1.0 on the api), so a
+# single small replica is enough for demo traffic.
+########################################################################
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi

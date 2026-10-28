@@ -1,0 +1,55 @@
+{{- if .Values.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "agentflow-service.fullname" . }}
+  labels:
+    {{- include "agentflow-service.labels" . | nindent 4 }}
+    app: {{ include "agentflow-service.appLabel" . }}
+    version: {{ include "agentflow-service.version" . | quote }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "agentflow-service.selectorLabels" . | nindent 6 }}
+  template:
+    {{- include "agentflow-service.podTemplate" . | nindent 4 }}
+  strategy:
+    canary:
+      maxSurge: {{ .Values.rollout.canary.maxSurge | quote }}
+      maxUnavailable: {{ .Values.rollout.canary.maxUnavailable }}
+      abortScaleDownDelaySeconds: {{ .Values.rollout.canary.abortScaleDownDelaySeconds }}
+      {{- if include "agentflow-service.istioTrafficRouting" . }}
+      trafficRouting:
+        istio:
+          virtualService:
+            name: {{ include "agentflow-service.fullname" . }}
+            routes: {{ include "agentflow-service.routeNames" . }}
+          destinationRule:
+            name: {{ include "agentflow-service.fullname" . }}
+            canarySubsetName: canary
+            stableSubsetName: stable
+      {{- end }}
+      {{- if .Values.rollout.canary.analysis.enabled }}
+      analysis:
+        startingStep: {{ .Values.rollout.canary.analysis.startingStep }}
+        templates:
+          {{- toYaml .Values.rollout.canary.analysis.templates | nindent 10 }}
+        args:
+          - name: workload
+            value: {{ include "agentflow-service.fullname" . }}
+          - name: namespace
+            value: {{ .Release.Namespace }}
+          - name: canary-version
+            valueFrom:
+              fieldRef:
+                fieldPath: "metadata.labels['version']"
+      {{- end }}
+      {{- with .Values.rollout.canary.steps }}
+      steps:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

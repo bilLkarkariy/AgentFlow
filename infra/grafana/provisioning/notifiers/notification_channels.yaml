@@ -1,8 +1,0 @@
-apiVersion: 1
-notifiers:
-  - name: slack-workspace-alert
-    type: slack
-    disableResolveMessage: false
-    sendReminder: false
-    settings:
-      url: "$SLACK_WORKSPACE_ALERT_URL"

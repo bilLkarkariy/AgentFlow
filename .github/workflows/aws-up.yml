@@ -1,0 +1,117 @@
+########################################################################
+# Creates the ephemeral EKS demo from GitHub, without a single long-lived
+# AWS key: the job exchanges its OIDC token for the `agentflow-github-actions`
+# role, whose trust policy only accepts this repository's `aws-demo`
+# environment (infra/bootstrap). The environment is where the human
+# approval lives.
+#
+# THIS WORKFLOW SPENDS MONEY (~0.24 USD/h) and does not stop on its own.
+# aws-guard.yml notices a cluster left running, and aws-down.yml removes
+# it.
+#
+# `contents: write` is needed because `make aws-up` commits the rendered
+# environment (EIP allocations, subnet ids, sslip.io domain, IRSA role
+# ARNs) back to the branch ArgoCD follows - see scripts/aws-render-env.sh.
+########################################################################
+name: AWS up
+
+on:
+  workflow_dispatch:
+    inputs:
+      capacity_type:
+        description: 'EC2 capacity for the node group'
+        required: true
+        default: SPOT
+        type: choice
+        options:
+          - SPOT
+          - ON_DEMAND
+      gitops_revision:
+        description: 'Branch ArgoCD follows, and the branch the render is committed to'
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: aws-demo-lifecycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  TERRAFORM_VERSION: 1.16.0
+  HELM_VERSION: v4.2.4
+
+jobs:
+  up:
+    name: create agentflow-demo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: aws-demo
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Checkout ${{ inputs.gitops_revision }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.gitops_revision }}
+          fetch-depth: 0
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Check the toolchain
+        run: |
+          set -euo pipefail
+          for bin in terraform kubectl helm aws jq yq git curl; do
+            command -v "$bin" >/dev/null || { echo "::error::$bin is missing"; exit 1; }
+          done
+          yq --version
+          aws --version
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: agentflow-aws-up-${{ github.run_id }}
+
+      # `make aws-up` commits the render; the commit needs an author.
+      - name: Configure git
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: make aws-up
+        env:
+          CI: 'true'
+          CAPACITY_TYPE: ${{ inputs.capacity_type }}
+          GITOPS_REV: ${{ inputs.gitops_revision }}
+        run: make aws-up YES=1
+
+      - name: Status
+        if: always()
+        run: make aws-status || true
+
+      # A half-created environment still bills. Say so loudly rather than
+      # leaving a red tick and a running cluster.
+      - name: Warn if the run failed
+        if: failure()
+        run: |
+          echo "::warning::aws-up failed. Resources may already exist and be billing."
+          echo "::warning::Run the 'AWS down' workflow, or \`make aws-down\` locally."

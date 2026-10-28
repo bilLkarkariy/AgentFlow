@@ -1,0 +1,24 @@
+{{ .Chart.Name }} {{ .Chart.Version }} released as {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Workload : {{ if .Values.rollout.enabled }}Rollout{{ else }}Deployment{{ end }} {{ include "agentflow-service.fullname" . }}
+Image    : {{ include "agentflow-service.image" . }}
+Labels   : app={{ include "agentflow-service.appLabel" . }} version={{ include "agentflow-service.version" . }}
+{{ if .Values.service.enabled -}}
+Service  : {{ include "agentflow-service.fullname" . }}:{{ .Values.service.port }} -> container port {{ .Values.containerPort }} (http)
+{{- else -}}
+Service  : disabled (no inbound traffic)
+{{- end }}
+
+{{ if .Values.istio.virtualService.enabled -}}
+Routing  : VirtualService {{ include "agentflow-service.fullname" . }}, routes {{ include "agentflow-service.routeNames" . }}
+Hosts    : {{ join ", " .Values.istio.virtualService.hosts }}
+{{ end -}}
+{{- if include "agentflow-service.istioTrafficRouting" . -}}
+Canary   : Istio subsets stable/canary driven by Argo Rollouts.
+           kubectl argo rollouts get rollout {{ include "agentflow-service.fullname" . }} -n {{ .Release.Namespace }} --watch
+{{ end -}}
+{{- if .Values.migrations.enabled -}}
+Migration: Job {{ include "agentflow-service.fullname" . }}-migrate-<revision> runs before every install/upgrade (ArgoCD PreSync).
+{{ end }}
+Check the rollout:
+  kubectl -n {{ .Release.Namespace }} get {{ if .Values.rollout.enabled }}rollout{{ else }}deployment{{ end }} {{ include "agentflow-service.fullname" . }}

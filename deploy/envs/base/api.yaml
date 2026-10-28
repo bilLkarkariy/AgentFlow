@@ -1,0 +1,164 @@
+########################################################################
+# agentflow-api - values shared by every environment.
+#
+# Rendered by the ApplicationSet in deploy/argocd/envs/<env>/services.yaml:
+#   helm template agentflow-api deploy/charts/agentflow-service \
+#     -f deploy/envs/base/api.yaml -f deploy/envs/<env>/api.yaml
+#
+# Anything that differs between kind and EKS (image tag, host, replicas,
+# POTGRES_SSL, trace sampling, database Secret) lives in the env file, never
+# here. See deploy/README.md for the full contract table.
+########################################################################
+
+# Istio/Prometheus workload label and DestinationRule subset selector.
+appLabel: api
+
+image:
+  repository: ghcr.io/billkarkariy/agentflow-api
+  pullPolicy: IfNotPresent
+
+containerPort: 3000
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  appProtocol: http
+
+# Canary with Istio traffic shifting and a Prometheus analysis. The api is
+# the only workload whose canary can be aborted automatically.
+rollout:
+  enabled: true
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: { duration: 60s }
+      - setWeight: 50
+      - pause: { duration: 60s }
+    maxSurge: "25%"
+    maxUnavailable: 0
+    abortScaleDownDelaySeconds: 30
+    trafficRouting:
+      istio:
+        enabled: true
+    analysis:
+      enabled: true
+      startingStep: 1
+      templates:
+        # ClusterAnalysisTemplate shipped by deploy/platform/argo-rollouts.
+        - templateName: istio-success-rate
+          clusterScope: true
+
+# Plain environment (ConfigMap + envFrom). Secrets never appear here.
+config:
+  NODE_ENV: production
+  PORT: "3000"
+  LOG_LEVEL: info
+  # Redis: BullMQ queues and the Socket.IO adapter.
+  REDIS_HOST: agentflow-redis
+  REDIS_PORT: "6379"
+  # The api calls itself over the loopback, not through the mesh.
+  API_URL: http://127.0.0.1:3000
+  # Python agent runner, paths baked into the api image.
+  PYTHON_BIN: /opt/venv/bin/python
+  PYTHON_SCRIPTS_DIR: /app/python
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318
+  OTEL_SERVICE_NAME: api.agentflow
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+
+# OPENAI_API_KEY, RABBITMQ_URL, CELERY_BROKER_URL and the optional OAuth keys.
+# Local: created by deploy/charts/agentflow-infra (dummy values).
+# AWS:   created by External Secrets Operator from AWS Secrets Manager.
+secrets:
+  existingSecret: agentflow-api-secrets
+
+extraEnv:
+  # APP_VERSION must equal the image tag. Reading it back from the pod label
+  # `version` (which the chart derives from image.tag) keeps CI's single
+  # `yq -i '.image.tag = ...'` bump correct, with nothing to keep in sync.
+  - name: APP_VERSION
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.labels['version']
+
+# Contract with WP1: GET /health is liveness, GET /health/ready is the
+# Terminus check (Postgres, Redis, RabbitMQ).
+probes:
+  startup:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 20
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /health/ready
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+# No CPU limit on purpose: the Python child process is bursty and CFS
+# throttling would show up as latency in the canary analysis.
+resources:
+  requests:
+    cpu: 300m
+    memory: 640Mi
+  limits:
+    memory: 1536Mi
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# TypeORM migrations, run as an ArgoCD PreSync hook before the new pods start.
+migrations:
+  enabled: true
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: /metrics
+  # Without this the app can start before Envoy is ready and its first
+  # outbound calls (Postgres, Redis, RabbitMQ) fail.
+  proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+# readOnlyRootFilesystem is on, and the api writes Python scratch files.
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+# Mesh mode: Prometheus scrapes by pod annotation (ScrapeConfig), so no
+# ServiceMonitor anywhere.
+serviceMonitor:
+  enabled: false
+
+istio:
+  virtualService:
+    enabled: true
+    gateways:
+      - istio-ingress/agentflow-gateway
+    # hosts: per environment.
+    # Long-lived requests get their own named route: timeout 0s, no retries.
+    # Retrying a websocket upgrade or a streaming run would duplicate work.
+    streamingPaths:
+      - prefix: /ws/flow
+      - prefix: /socket.io
+      - regex: "^/agents/[^/]+/flow/(execute|run)$"
+    timeout: 30s
+    retries:
+      attempts: 2
+      retryOn: "connect-failure,refused-stream,reset"
+  destinationRule:
+    enabled: true

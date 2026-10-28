@@ -8,7 +8,10 @@ import { FlowEngineService } from '../../agent-runtime/flow-engine.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiQuery as SwaggerQuery } from '@nestjs/swagger';
 import { DslParserService } from '../../agent-runtime/dsl-parser.service';
-import pricing from '../../../pricing.json';
+import { PricingService } from '../../pricing/pricing.service';
+
+/** Display-only conversion for the historical `euros` stat key. */
+const USD_TO_EUR = 0.92;
 
 @ApiTags('flows')
 @Controller('agents/:id/flow')
@@ -18,6 +21,7 @@ export class FlowController {
     private readonly flowEngineService: FlowEngineService,
     private readonly eventEmitter: EventEmitter2,
     private readonly dslParserService: DslParserService,
+    private readonly pricing: PricingService,
   ) {}
 
   @Get()
@@ -46,18 +50,26 @@ export class FlowController {
     const dto = typeof body === 'string'
       ? this.dslParserService.parse(body)
       : body;
+    const model = this.pricing.normalizeModel(dto?.nodes?.[0]?.model);
     let tokenCount = 0;
-    let eurosTotal = 0;
     this.flowEngineService.runFlow(dto, inputQuery).subscribe({
       next: token => {
         tokenCount++;
-        eurosTotal += pricing.default;
         res.write(`data: ${token}\n\n`);
       },
       error: () => res.end(),
       complete: () => {
+        const usd = this.pricing.costFor(model, tokenCount);
         res.write(`event: stats\n`);
-        res.write(`data: ${JSON.stringify({ tokens: tokenCount, euros: eurosTotal })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({
+            tokens: tokenCount,
+            model,
+            usd,
+            // kept for the studio UI, which still reads `euros`
+            euros: usd * USD_TO_EUR,
+          })}\n\n`,
+        );
         res.end();
       },
     });

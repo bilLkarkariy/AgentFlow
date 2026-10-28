@@ -1,0 +1,21 @@
+########################################################################
+# External Secrets Operator - kind overrides.
+#
+# The ClusterSecretStore uses the `kubernetes` provider, which reads
+# Secrets from namespace platform-secrets through the `eso-reader`
+# ServiceAccount (manifests/overlays/local). No cloud credentials, no
+# IRSA annotation on this chart's ServiceAccount.
+########################################################################
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+# The `kubernetes` provider calls SelfSubjectRulesReview to check what the
+# impersonated ServiceAccount may read. That verb is granted by the
+# ClusterRole in manifests/base/rbac.yaml, bound to this ServiceAccount.
+serviceAccount:
+  annotations: {}

@@ -1,0 +1,17 @@
+########################################################################
+# monitoring-config - EKS.
+#
+# Same scrape job, same rules, same dashboards as local. Retention is a
+# property of Prometheus and Loki, not of these objects, so it is set in
+# their values-aws.yaml files instead of patched here.
+########################################################################
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+labels:
+  - includeSelectors: false
+    pairs:
+      agentflow.io/environment: aws

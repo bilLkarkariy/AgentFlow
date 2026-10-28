@@ -1,0 +1,52 @@
+########################################################################
+# Every application container must declare a memory limit and a CPU
+# request.
+#
+#   memory limit  -> the kubelet can evict predictably; no single pod can
+#                    OOM the whole kind node.
+#   cpu request   -> the scheduler has something to bin-pack on, and the
+#                    pod lands in the Burstable QoS class instead of
+#                    BestEffort (first to be evicted under pressure).
+#
+# Deliberately NOT required:
+#   cpu limit     -> CFS throttling hurts latency far more than it helps.
+#   initContainers -> the Istio `istio-init` container is injected by the
+#                    sidecar injector with whatever the mesh defaults say;
+#                    the workload owner cannot fix it.
+########################################################################
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require resource limits
+    policies.kyverno.io/category: Resource management
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Containers in the agentflow namespace must set
+      resources.limits.memory and resources.requests.cpu.
+spec:
+  background: true
+  rules:
+    - name: require-memory-limit-and-cpu-request
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - agentflow
+      validate:
+        failureAction: Enforce
+        message: >-
+          Every container must set resources.limits.memory and
+          resources.requests.cpu.
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+                  requests:
+                    cpu: "?*"

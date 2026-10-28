@@ -1,0 +1,66 @@
+########################################################################
+# Monitoring configuration owned by AgentFlow rather than by a chart:
+# the annotation-driven scrape job, the alerting and recording rules,
+# and the dashboards.
+#
+# Everything here is picked up by selector, not by ownership:
+#   - Prometheus takes the ScrapeConfig and the PrometheusRule because
+#     *SelectorNilUsesHelmValues is false on the Prometheus CR.
+#   - Grafana's sidecar takes any ConfigMap labelled grafana_dashboard=1
+#     in any namespace, and files it under the folder named by the
+#     grafana_folder annotation.
+########################################################################
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+resources:
+  - scrapeconfig-annotated-pods.yaml
+  - rules/agentflow-rules.yaml
+
+configMapGenerator:
+  # One ConfigMap per dashboard: the sidecar reloads a single dashboard
+  # on change, and a suffix hash would leave orphans behind on every
+  # edit, so it is disabled.
+  - name: agentflow-dashboard-overview
+    files:
+      - agentflow-overview.json=dashboards/agentflow-overview.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: AgentFlow
+
+  - name: agentflow-dashboard-llm-costs
+    files:
+      - agentflow-llm-costs.json=dashboards/agentflow-llm-costs.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: AgentFlow
+
+  - name: agentflow-dashboard-canary
+    files:
+      - agentflow-canary.json=dashboards/agentflow-canary.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: AgentFlow
+
+  # Vendored verbatim from
+  # https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/dashboard.json
+  - name: agentflow-dashboard-argo-rollouts
+    files:
+      - argo-rollouts.json=dashboards/argo-rollouts.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: AgentFlow

@@ -1,0 +1,60 @@
+########################################################################
+# Stateful dependencies - local.
+#
+# Wave -1: Postgres, Redis and RabbitMQ exist before the first api pod (and
+# before the PreSync migration Job) starts.
+#
+# The value files live outside the chart directory on purpose: one chart,
+# one values pair per environment, and CI bumps nothing here.
+########################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agentflow-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: agentflow
+    env: local
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: agentflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agentflow
+  source:
+    repoURL: https://github.com/bilLkarkariy/AgentFlow.git
+    targetRevision: main
+    path: deploy/charts/agentflow-infra
+    helm:
+      releaseName: agentflow-infra
+      valueFiles:
+        - ../../envs/base/infra.yaml
+        - ../../envs/local/infra.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    # CloudNativePG rewrites its own Cluster status and defaults several
+    # spec fields (image, probes, resources rounding). Only the fields this
+    # chart sets are ours to reconcile.
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      name: agentflow-db
+      namespace: agentflow
+      jsonPointers:
+        - /spec/imageName

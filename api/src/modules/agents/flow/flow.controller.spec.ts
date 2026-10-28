@@ -6,6 +6,7 @@ import { FlowEngineService } from '../../agent-runtime/flow-engine.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FlowDto } from './flow.dto';
 import { MessageEvent } from '@nestjs/common';
+import { PricingService } from '../../pricing/pricing.service';
 
 describe('FlowController', () => {
   let controller: FlowController;
@@ -26,6 +27,7 @@ describe('FlowController', () => {
       flowEngineService as FlowEngineService,
       eventEmitter as EventEmitter2,
       dslParserService as DslParserService,
+      new PricingService(),
     );
   });
 

@@ -17,16 +17,24 @@ const nodeSchemas: Record<string, { properties: Record<string, { type: string; t
 };
 
 export default function NodeInspector({ node, updateNode }: Props) {
+  // Les hooks doivent etre appeles avant tout return conditionnel (React #310).
+  const set = useCallback((patch: any) => { if (node) updateNode(node.id, patch); }, [node?.id, updateNode]);
+
   if (!node)
     return (
-      <div className="w-64 border-l p-3 text-sm bg-white">Select a node</div>
+      <div className="text-[13px] text-inkmute/70">
+        <div className="label pb-2">Propriétés</div>
+        Sélectionnez un bloc pour voir ses propriétés.
+      </div>
     );
 
-  const set = useCallback((patch: any) => updateNode(node.id, patch), [node?.id, updateNode]);
-
   return (
-    <div className="w-64 border-l p-3 space-y-3 text-sm bg-white overflow-y-auto">
-      <h2 className="font-semibold text-base mb-2">{node.type} properties</h2>
+    <div className="space-y-3 text-sm">
+      <div>
+        <div className="label">Propriétés</div>
+        <h2 className="text-[14px] font-semibold text-ink mt-1.5">{(node.data as any)?.label ?? node.type}</h2>
+        <div className="measure mt-0.5">{node.type}</div>
+      </div>
 
       {/* Dynamic form based on schema */}
       {(() => {
@@ -41,11 +49,11 @@ export default function NodeInspector({ node, updateNode }: Props) {
           const fieldId = `inspector-${node.id}-${key}`;
           return (
             <div key={key} className="flex flex-col gap-1">
-              <label htmlFor={fieldId} className="text-xs">{prop.title}</label>
+              <label htmlFor={fieldId} className="text-[11.5px] font-medium text-inkmute">{prop.title}</label>
               {isTextarea ? (
                 <textarea
                   id={fieldId}
-                  className="border px-1 py-0.5 rounded"
+                  className="border border-line rounded-md px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus:border-agent"
                   value={value}
                   onChange={handleChange}
                 />
@@ -53,7 +61,7 @@ export default function NodeInspector({ node, updateNode }: Props) {
                 <input
                   id={fieldId}
                   type="text"
-                  className="border px-1 py-0.5 rounded"
+                  className="border border-line rounded-md px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus:border-agent"
                   value={value}
                   onChange={handleChange}
                 />

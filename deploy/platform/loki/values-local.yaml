@@ -1,0 +1,17 @@
+########################################################################
+# Loki - kind / OrbStack overrides.
+#
+# The default StorageClass (local-path-provisioner) is used, so
+# storageClass stays unset.
+########################################################################
+
+singleBinary:
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi

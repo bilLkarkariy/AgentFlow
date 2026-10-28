@@ -1,6 +1,6 @@
 import { QuontoService } from './quonto.service';
 import axios from 'axios';
-import { InternalServerErrorException } from '@nestjs/common';
+import { ServiceUnavailableException } from '@nestjs/common';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -31,9 +31,17 @@ describe('QuontoService', () => {
     expect(result).toEqual(transactionsArray);
   });
 
-  it('constructor should throw if credentials missing', () => {
+  it('constructor should not throw if credentials are missing', () => {
     delete process.env.QUONTO_CLIENT_ID;
     delete process.env.QUONTO_CLIENT_SECRET;
-    expect(() => new QuontoService()).toThrow(InternalServerErrorException);
+    expect(() => new QuontoService()).not.toThrow();
+  });
+
+  it('listTransactions should reject when the connector is disabled', async () => {
+    delete process.env.QUONTO_CLIENT_ID;
+    delete process.env.QUONTO_CLIENT_SECRET;
+    const disabled = new QuontoService();
+    await expect(disabled.listTransactions('acct1')).rejects.toThrow(ServiceUnavailableException);
+    expect(mockedAxios.get).not.toHaveBeenCalled();
   });
 });

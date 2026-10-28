@@ -1,0 +1,23 @@
+########################################################################
+# External Secrets configuration - shared base.
+#
+# Namespaces are owned by deploy/platform/namespaces (wave 0), so this
+# base only carries the reader identity. Every ClusterSecretStore and
+# ExternalSecret is environment-specific and lives in overlays/.
+#
+# No `namespace:` transformer here on purpose: the ArgoCD Application for
+# this component targets platform-secrets, but each manifest sets its own
+# metadata.namespace (the ExternalSecrets have to land in `agentflow` and
+# `cert-manager`), and ArgoCD honours it.
+########################################################################
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - rbac.yaml
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: agentflow-platform
+      agentflow.io/component: external-secrets-config

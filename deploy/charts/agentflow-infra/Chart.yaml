@@ -1,0 +1,23 @@
+apiVersion: v2
+name: agentflow-infra
+description: |
+  Stateful dependencies of the AgentFlow workloads in namespace `agentflow`:
+  a CloudNativePG Cluster, Redis and RabbitMQ. Everything is behind an
+  `enabled` flag so the same chart serves kind (all on) and EKS (Postgres
+  provided by RDS, so the CNPG Cluster is off).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"
+keywords:
+  - agentflow
+  - cloudnative-pg
+  - redis
+  - rabbitmq
+home: https://github.com/bilLkarkariy/AgentFlow
+sources:
+  - https://github.com/bilLkarkariy/AgentFlow
+maintainers:
+  - name: AgentFlow platform
+annotations:
+  category: Database

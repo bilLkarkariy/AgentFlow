@@ -1,0 +1,14 @@
+apiVersion: v2
+name: agentflow-platform-bootstrap
+description: |
+  App-of-apps for the AgentFlow platform. Renders one ArgoCD Application per
+  entry of `.Values.components`, plus the two AppProjects and the wave-20
+  Application that owns the AgentFlow workloads.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - argocd
+  - gitops
+  - platform
+home: https://github.com/bilLkarkariy/AgentFlow

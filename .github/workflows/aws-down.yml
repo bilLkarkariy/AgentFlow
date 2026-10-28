@@ -1,0 +1,91 @@
+########################################################################
+# Destroys the ephemeral EKS demo. Same OIDC role and same `aws-demo`
+# environment as aws-up.yml, and the same concurrency group, so an up and
+# a down can never run at the same time on the same account.
+#
+# The job ends with scripts/aws-check-clean.sh: a green tick here means
+# the audit found nothing left that costs money, not merely that
+# `terraform destroy` returned 0.
+########################################################################
+name: AWS down
+
+on:
+  workflow_dispatch:
+    inputs:
+      gitops_revision:
+        description: 'Branch to run the teardown scripts from'
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: aws-demo-lifecycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  TERRAFORM_VERSION: 1.16.0
+
+jobs:
+  down:
+    name: destroy agentflow-demo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: aws-demo
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout ${{ inputs.gitops_revision }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.gitops_revision }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: agentflow-aws-down-${{ github.run_id }}
+
+      # The cluster may already be unreachable (a previous destroy got
+      # half way). aws-down.sh handles that: it skips the drain and goes
+      # straight to terraform, then cleans the stragglers by tag.
+      - name: Write the kubeconfig if the cluster still exists
+        run: |
+          set -euo pipefail
+          if aws eks describe-cluster --name agentflow-demo >/dev/null 2>&1; then
+            aws eks update-kubeconfig --region "${AWS_REGION}" \
+              --name agentflow-demo --alias agentflow-aws
+          else
+            echo "no cluster named agentflow-demo; teardown continues on the AWS side only"
+          fi
+
+      - name: make aws-down
+        env:
+          CI: 'true'
+        run: make aws-down YES=1
+
+      # Belt and braces: aws-down.sh already runs the audit, but a failure
+      # there must not be the last thing anyone reads in the log.
+      - name: Final leftover audit
+        if: always()
+        run: make aws-check-clean
+
+      - name: Warn if anything is left
+        if: failure()
+        run: |
+          echo "::warning::Something is still running or still allocated in the account."
+          echo "::warning::Read the audit table above; every LEFT / RUN line costs money."

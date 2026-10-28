@@ -1,0 +1,17 @@
+# Build context ignores (context = repo root for every service Dockerfile).
+# Careful: web/nginx/ must stay in the context, the SPA images copy it.
+**/node_modules
+**/dist
+**/.git
+**/venv
+**/.venv
+**/__pycache__
+**/.env*
+**/coverage
+**/test-results
+**/storybook-static
+infra
+deploy
+docs
+.github
+*.md

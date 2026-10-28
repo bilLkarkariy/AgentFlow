@@ -1,0 +1,48 @@
+########################################################################
+# Istio control plane.
+#
+# Egress 15012 (istiod): the sidecar's lifeline. It carries XDS (listeners,
+# clusters, routes) *and* the CSR exchange that issues the workload's mTLS
+# certificate, over a single mutually-authenticated channel. Without it a
+# freshly started pod never gets a certificate, mTLS STRICT rejects every
+# call, and the pod looks "up but broken".
+#
+# Ingress 15020 / 15090: Prometheus (namespace observability) scraping the
+# sidecar. 15020 is the pilot-agent (merged app + proxy metrics, and the
+# readiness endpoint); 15090 is raw Envoy telemetry. These are what feed
+# `istio_requests_total`, hence the canary AnalysisRun.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-control-plane
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istiod
+      ports:
+        - protocol: TCP
+          port: 15012
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 15020
+        - protocol: TCP
+          port: 15090

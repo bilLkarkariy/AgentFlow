@@ -1,4 +1,11 @@
-version: '3.9'
+# Local development stack. Build context is the repo root for every image.
+#   docker compose up -d --build
+
+x-api-image: &api-image
+  image: agentflow-api:local
+  build:
+    context: .
+    dockerfile: api/Dockerfile
 
 services:
   postgres:
@@ -38,35 +45,40 @@ services:
       interval: 10s
       retries: 5
 
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 10s
-      retries: 5
-
-  api:
-    build:
-      context: .
-      dockerfile: api/Dockerfile
+  # One-shot: brings the schema up to date, then exits. The api waits for it.
+  migrate:
+    <<: *api-image
+    restart: 'no'
+    command: ['node', 'node_modules/typeorm/cli.js', 'migration:run', '-d', 'dist/src/data-source.js']
     environment:
       - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/postgres
+      - POSTGRES_SSL=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+
+  api:
+    <<: *api-image
+    restart: unless-stopped
+    environment:
+      - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/postgres
+      - POSTGRES_SSL=false
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - '3000:3000'
     networks:
@@ -75,12 +87,42 @@ services:
   worker:
     build:
       context: ./worker
+    restart: unless-stopped
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - API_URL=http://api:3000
+      - METRICS_PORT=9100
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '9100:9100'
+    networks:
+      - default
+
+  studio:
+    build:
+      context: .
+      dockerfile: web/studio/Dockerfile
+    restart: unless-stopped
+    environment:
+      - APP_API_BASE_URL=http://localhost:3000
+    ports:
+      - '5174:8080'
+    networks:
+      - default
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: web/dashboard/Dockerfile
+    restart: unless-stopped
+    environment:
+      - APP_API_BASE_URL=http://localhost:3000
+    ports:
+      - '5173:8080'
     networks:
       - default
 
@@ -90,5 +132,4 @@ networks:
 
 volumes:
   postgres_data:
-  minio_data:
   rabbitmq_data:

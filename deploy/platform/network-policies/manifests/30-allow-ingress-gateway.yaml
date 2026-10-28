@@ -1,0 +1,44 @@
+########################################################################
+# North-south traffic.
+#
+# The only pods reachable from outside the namespace are the three that a
+# browser talks to, and only from the ingress gateway. The worker, the
+# database, Redis and RabbitMQ have no path from the internet at all -
+# that is the point of putting the gateway in its own namespace.
+#
+# Ports are the application ports (plan section 5): the gateway dials the
+# pod IP on 3000 / 8080 and the sidecar intercepts it, so what the CNI
+# sees - and what this policy has to allow - is the app port.
+########################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-gateway
+  namespace: agentflow
+  labels:
+    app.kubernetes.io/part-of: agentflow-platform
+    agentflow.io/component: network-policies
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - api
+          - studio
+          - dashboard
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-ingress
+          podSelector:
+            matchLabels:
+              istio: ingressgateway
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8080

@@ -10,21 +10,23 @@ export const AgentConfigPanel: React.FC = () => {
   const addMapping = useFlowStore((s) => s.addMapping);
   const removeMapping = useFlowStore((s) => s.removeMapping);
 
-  if (!node) return <div className="agent-config-panel">No node selected</div>;
+  // Tous les hooks avant le premier return conditionnel (React #310).
+  const [source, setSource] = useState<string>('');
+  const [target, setTarget] = useState<string>('');
+  const allNodes = useFlowStore((s) => s.nodes);
+
+  if (!node) return null;
 
   const data = node.data || {};
   const { temperature = 0.7, model = 'gpt-4o-mini', max_tokens = 256 } = data;
 
-  const [source, setSource] = useState<string>('');
-  const [target, setTarget] = useState<string>('');
-
-  const nodeOptions = useFlowStore((s) => s.nodes).map((n) => ({ id: n.id, label: n.data.label || n.id }));
+  const nodeOptions = allNodes.map((n) => ({ id: n.id, label: n.data.label || n.id }));
 
   return (
     <div className="agent-config-panel">
-      <h3>Agent Configuration</h3>
+      <h3>Configuration de l'agent</h3>
       <label>
-        Model
+        Modèle
         <input
           type="text"
           value={model}
@@ -32,7 +34,7 @@ export const AgentConfigPanel: React.FC = () => {
         />
       </label>
       <label>
-        Temperature
+        Température
         <input
           type="number"
           step="0.1"
@@ -43,7 +45,7 @@ export const AgentConfigPanel: React.FC = () => {
         />
       </label>
       <label>
-        Max Tokens
+        Jetons max
         <input
           type="number"
           min="1"
@@ -52,21 +54,21 @@ export const AgentConfigPanel: React.FC = () => {
         />
       </label>
       <div className="mapping-section">
-        <h4>Output → Input Mapping</h4>
+        <h4>Passage de sortie vers entrée</h4>
         <div>
           <select value={source} onChange={(e) => setSource(e.target.value)}>
-            <option value="">Select source node</option>
+            <option value="">Bloc source…</option>
             {nodeOptions.map((o) => (<option key={o.id} value={o.id}>{o.label}</option>))}
           </select>
           <span>→</span>
           <select value={target} onChange={(e) => setTarget(e.target.value)}>
-            <option value="">Select target node</option>
+            <option value="">Bloc cible…</option>
             {nodeOptions.map((o) => (<option key={o.id} value={o.id}>{o.label}</option>))}
           </select>
-          <button disabled={!source || !target} onClick={() => { addMapping({ output: source, input: target }); setSource(''); setTarget(''); }}>Add</button>
+          <button disabled={!source || !target} onClick={() => { addMapping({ output: source, input: target }); setSource(''); setTarget(''); }}>Ajouter</button>
         </div>
         <ul>
-          {mappings.map((m, i) => (<li key={i}>{m.output} → {m.input} <button onClick={() => removeMapping(m)}>Remove</button></li>))}
+          {mappings.map((m, i) => (<li key={i}>{m.output} → {m.input} <button onClick={() => removeMapping(m)}>Retirer</button></li>))}
         </ul>
       </div>
     </div>

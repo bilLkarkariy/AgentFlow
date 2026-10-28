@@ -1,0 +1,33 @@
+########################################################################
+# ArgoCD - AWS / EKS overrides.
+#
+# SKELETON owned by WP7, filled in by the AWS work packages (WP12/WP13).
+# It is merged after argocd-values.yaml by infra/envs/aws-demo, exactly the
+# way argocd-values-local.yaml is merged by infra/envs/local.
+#
+# Deliberately empty of behaviour today: an empty document would break
+# `helm template -f`, so it only carries the two keys that are already
+# certain, plus the TODO list below.
+#
+# TODO (WP12/WP13):
+#   * admin password: keep the chart-generated random secret (do NOT set
+#     configs.secret.argocdServerAdminPassword here). `make aws-ui` reads it
+#     from the argocd-initial-admin-secret.
+#   * server: no ingress and no VirtualService. Admin UIs on AWS are reached
+#     through `kubectl port-forward` (see plan section 5), only api/studio/
+#     dashboard are exposed on *.<eip>.sslip.io.
+#   * controller/repoServer: raise requests once running on t4g.large
+#     (2 vCPU / 8 GiB) instead of the kind VM.
+#   * persistence: repoServer ephemeral Helm working dir on gp3
+#     (repoServer.useEphemeralHelmWorkingDir + volumes) if repo size grows.
+#   * notifications: keep disabled unless a Slack webhook is wired.
+#   * global.nodeSelector / tolerations for the Spot Graviton node group.
+########################################################################
+
+configs:
+  params:
+    server.insecure: true
+
+server:
+  service:
+    type: ClusterIP

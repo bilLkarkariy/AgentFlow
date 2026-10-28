@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid #2b4c8c;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Petite étiquette de section. Toujours en capitales, toujours discrète. */
+  .label {
+    @apply text-[10.5px] font-semibold uppercase tracking-label text-inkmute/70;
+  }
+  /* Règle typographique du studio : ce que la machine mesure est en monospace,
+     ce que l'humain a écrit est en sans. */
+  .measure {
+    @apply font-mono text-[11px] text-inkmute tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

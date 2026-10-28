@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  # No admin VirtualService on AWS: Grafana / ArgoCD / Kiali / Rollouts /
+  # Prometheus / Alertmanager are reached with `make aws-ui` (port-forward).
+  # Only api, studio and dashboard get a public host, and those
+  # VirtualServices are rendered by the agentflow-service chart (WP4/WP5).
+
+patches:
+  # 10 % sampling on AWS: Tempo storage and NLB egress both cost money.
+  - target:
+      group: telemetry.istio.io
+      version: v1
+      kind: Telemetry
+      name: mesh-default
+    patch: |
+      - op: replace
+        path: /spec/tracing/0/randomSamplingPercentage
+        value: 10.0

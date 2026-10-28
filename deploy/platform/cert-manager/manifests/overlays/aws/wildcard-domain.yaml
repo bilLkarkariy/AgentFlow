@@ -1,0 +1,18 @@
+########################################################################
+# RENDERED FILE - `.spec.dnsNames` is written by scripts/aws-render-env.sh
+# from the Terraform output `ingress_domain` (<eip-with-dashes>.sslip.io).
+#
+# Everything else is a normal strategic-merge patch on the wildcard
+# Certificate of ../../base. The value below is the placeholder that ships
+# in Git; the first `make aws-up` replaces it and commits the result, so
+# ArgoCD only ever reads a domain that actually exists.
+########################################################################
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: agentflow-wildcard-tls
+  namespace: istio-ingress
+spec:
+  dnsNames:
+    - "*.agentflow.demo"
+    - agentflow.demo

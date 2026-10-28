@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { LoggerModule } from '../common/logging/logger.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { HealthController } from './health/health.controller';
+import { HealthModule } from './health/health.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsModule } from './agents/agents.module';
 import { GmailModule } from './gmail/gmail.module';
@@ -20,6 +21,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { BullBoardModule } from './bull-board/bull-board.module';
 import { UsersModule } from './users/users.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { PricingModule } from './pricing/pricing.module';
 import { FlowLogsModule } from './flow-logs/flow-logs.module';
 import { DLQModule } from './dlq/dlq.module';
 import { HubspotModule } from './hubspot/hubspot.module';
@@ -42,6 +44,7 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule,
     EventEmitterModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -61,11 +64,12 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
           return {
             type: 'postgres',
             url: process.env.POSTGRES_URL,
-            // disable SSL for local Postgres
-            ssl: false,
+            // SSL is required by managed Postgres (RDS), disabled locally
+            ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : false,
             autoLoadEntities: true,
-            synchronize: true,
-            dropSchema: true,
+            // schema is owned by the migrations, never by the app
+            synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
+            migrationsRun: false,
           };
         }
         throw new Error('DATABASE URL not configured');
@@ -93,13 +97,15 @@ PlatformTools.load = (moduleName: string) => moduleName === 'pg' ? pg : original
     DashboardModule,
     UsersModule,
     MetricsModule,
+    PricingModule,
     FlowLogsModule,
     DLQModule,
     HubspotModule,
     ToolsModule,
     WebhookTriggerModule,
+    HealthModule,
   ],
-  controllers: [HealthController, TestErrorController],
+  controllers: [TestErrorController],
   providers: [
     {
       provide: APP_INTERCEPTOR,
