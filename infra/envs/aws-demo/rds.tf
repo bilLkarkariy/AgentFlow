@@ -43,7 +43,7 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_nodes" {
 
 module "rds" {
   source  = "terraform-aws-modules/rds/aws"
-  version = "~> 6.10"
+  version = "~> 7.2"
 
   identifier = "${local.name}-db"
 
