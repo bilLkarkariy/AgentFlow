@@ -37,7 +37,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
 # ---------------------------------------------------------------------------
 # Stage 2 : Python virtualenv for the agent runners (target architecture).
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS pydeps
+FROM python:3.15-slim-bookworm AS pydeps
 
 COPY api/python/requirements.txt /tmp/requirements.txt
 RUN --mount=type=cache,id=pip,target=/root/.cache/pip,sharing=locked \
@@ -49,7 +49,7 @@ RUN --mount=type=cache,id=pip,target=/root/.cache/pip,sharing=locked \
 # Stage 3 : runtime. Python base + the node binary, so both runtimes coexist
 # without carrying two package managers.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.15-slim-bookworm AS runtime
 
 COPY --from=node:24-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 
