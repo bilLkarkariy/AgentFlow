@@ -119,6 +119,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # tsc --noEmit in every workspace package: the Vite builds below strip
+      # types without checking them.
+      - name: Typecheck
+        run: pnpm typecheck
+
       - name: Build api
         run: pnpm --filter @agentflow/api run build
 
