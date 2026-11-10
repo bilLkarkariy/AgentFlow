@@ -2,6 +2,8 @@ import json
 import os
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -16,6 +18,31 @@ def openai_server():
     server = fake_openai.start()
     yield server
     fake_openai.stop(server)
+
+
+@pytest.fixture
+def backend_server():
+    """A fake NestJS tool endpoint; `server.calls` holds (path, body) of each POST."""
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            self.server.calls.append((self.path, body))
+            data = json.dumps({"summary": f"short {body.get('text')}"}).encode()
+            self.send_response(201)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.calls = []
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield server
+    server.shutdown()
+    server.server_close()
 
 
 @pytest.fixture

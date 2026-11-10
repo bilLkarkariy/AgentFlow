@@ -20,29 +20,32 @@ Python flow_runner.py                                 NestJS API (internal)
     }
   }
   ```  
-* In `flow_runner.py`, transform each backend tool into a simple callable:  
+* In `flow_runner.py`, each backend tool becomes an SDK `FunctionTool` (the SDK
+  only accepts its own tool types, not a plain callable):
   ```python
-  def mk_backend_tool(tool: dict):
-      """Create a backend tool that POSTs to NestJS /internal/tools/:toolId"""
-      import requests, os
+  def mk_backend_tool(tool: dict, timeout: float = None) -> FunctionTool:
+      url = f"{base}/internal/tools/{tool['toolId']}"
 
-      def call_backend(**kwargs):
-          base = os.getenv("API_URL", "http://localhost:3000")
-          url = f"{base}/internal/tools/{tool['toolId']}"
-          resp = requests.post(url, json=kwargs)
+      async def on_invoke_tool(_ctx, arguments: str) -> str:
+          resp = await asyncio.to_thread(
+              requests.post, url, json=json.loads(arguments or "{}"), timeout=timeout
+          )
           resp.raise_for_status()
-          return resp.json()
+          return json.dumps(resp.json())
 
-      return call_backend
-  ```  
-  ```python
-  # In build_agent_map():
-  for t in a.get("tools", []):
-      if t.get("toolType") == "backend":
-          tools_list.append(mk_backend_tool(t))
-      else:
-          tools_list.append(function_tool.from_dict(t))
-  ```  
+      return FunctionTool(
+          name=tool["name"],
+          description=tool.get("description", ""),
+          params_json_schema=tool.get("parameters") or {"type": "object", "properties": {}},
+          on_invoke_tool=on_invoke_tool,
+          strict_json_schema=False,
+      )
+  ```
+  An HTTP failure is returned to the model as the tool output; it does not
+  fail the run.
+* `toolType: "function"` names an in-process tool registered in
+  `flow_runner.LOCAL_TOOLS` by `toolId`. The registry is empty today: a flow
+  that names an unknown function tool fails with a clear error.
 ### 7.2  Côté NestJS
 ```ts
 // tools.module.ts

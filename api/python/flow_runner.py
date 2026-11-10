@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dynamic multi-agent flow runner – ND-JSON streaming over stdin/stdout"""
 import sys, json, asyncio, logging, os
-from agents import Agent, Runner, function_tool, RunConfig, set_tracing_export_api_key
+from agents import Agent, Runner, FunctionTool, RunConfig, set_tracing_export_api_key
 from openai.types.responses import ResponseTextDeltaEvent
 
 # Optionally exporter de traces
@@ -11,54 +11,62 @@ if TRACE_API_KEY:
 
 import requests
 
-# Ensure function_tool.from_dict exists for monkeypatching
-if not hasattr(function_tool, "from_dict"):
-    def _from_dict(t):
-        return function_tool(t["name"], lambda **kwargs: None)
-    function_tool.from_dict = _from_dict
+# In-process tools (`toolType: "function"`), keyed by toolId. A flow can only
+# name a tool registered here, e.g. one built with the SDK's @function_tool.
+LOCAL_TOOLS: dict[str, FunctionTool] = {}
 
-# GenericBackendTool for HTTP-based backend tools
-class GenericBackendTool:
+def mk_backend_tool(tool: dict, timeout: float = None) -> FunctionTool:
     """
-    A callable backend tool that POSTs to NestJS /internal/tools/:toolId.
-    Provides error handling and configurable timeouts.
+    A backend tool (`toolType: "backend"`): when the model calls it, the
+    arguments are POSTed to NestJS /internal/tools/:toolId and the JSON reply
+    is the tool output.
     """
-    def __init__(self, tool: dict, timeout: float = None):
-        self.tool = tool
-        self.base = os.getenv("API_URL", "http://localhost:3000")
-        # timeout in seconds
-        self.timeout = timeout or float(os.getenv("API_TIMEOUT", "30"))
-    def __call__(self, **kwargs):
-        url = f"{self.base}/internal/tools/{self.tool['toolId']}"
+    base = os.getenv("API_URL", "http://localhost:3000")
+    # timeout in seconds
+    timeout = timeout or float(os.getenv("API_TIMEOUT", "30"))
+    url = f"{base}/internal/tools/{tool['toolId']}"
+
+    async def on_invoke_tool(_ctx, arguments: str) -> str:
         try:
-            resp = requests.post(url, json=kwargs, timeout=self.timeout)
+            # requests is blocking: keep the event loop free while the API answers.
+            resp = await asyncio.to_thread(
+                requests.post, url, json=json.loads(arguments or "{}"), timeout=timeout
+            )
             resp.raise_for_status()
-        except requests.RequestException as e:
-            logging.error(f"Error calling backend tool {self.tool['toolId']}: {e}")
-            raise
-        return resp.json()
+            return json.dumps(resp.json())
+        except (requests.RequestException, ValueError) as e:
+            logging.error(f"Error calling backend tool {tool['toolId']}: {e}")
+            # Like a failing @function_tool: the model gets the error and the run goes on.
+            return f"Error calling tool {tool['name']}: {e}"
 
-# Alias for compatibility
-def mk_backend_tool(tool: dict, timeout: float = None):
-    """Create a GenericBackendTool callable for the given tool definition."""
-    return GenericBackendTool(tool, timeout)
+    return FunctionTool(
+        name=tool["name"],
+        description=tool.get("description", ""),
+        params_json_schema=tool.get("parameters") or {"type": "object", "properties": {}},
+        on_invoke_tool=on_invoke_tool,
+        # The schema comes from the flow: it is not required to fit strict mode.
+        strict_json_schema=False,
+    )
+
+def mk_tool(tool) -> FunctionTool:
+    """Turn one tool entry of the payload into an SDK tool."""
+    if not isinstance(tool, dict):
+        raise ValueError(f"Unsupported tool definition: {tool!r}")
+    if tool.get("toolType") == "backend":
+        return mk_backend_tool(tool)
+    if tool.get("toolId") not in LOCAL_TOOLS:
+        raise ValueError(f"Unknown function tool: {tool.get('toolId')!r}")
+    return LOCAL_TOOLS[tool["toolId"]]
 
 async def build_agent_map(payload: dict) -> dict[str, Agent]:
     """Construire un mapping id→Agent avec outils et handoffs"""
     id_to_agent: dict[str, Agent] = {}
     for a in payload.get("agents", []):
-        # Prepare tools: backend tools call NestJS, others use function_tool.from_dict
-        tools_list = []
-        for t in a.get("tools", []):
-            if t.get("toolType") == "backend":
-                tools_list.append(mk_backend_tool(t))
-            else:
-                tools_list.append(function_tool.from_dict(t))
         id_to_agent[a["id"]] = Agent(
             name=a.get("name", a["id"]),
             instructions=a.get("instructions", ""),
             model=a.get("model", None),
-            tools=tools_list
+            tools=[mk_tool(t) for t in a.get("tools") or []],
         )
     # Configurer les handoffs
     for src, dst in payload.get("edges", []):

@@ -1,4 +1,10 @@
 """The real flow_runner.py process, against the fake OpenAI endpoint."""
+import json
+
+import pytest
+from agents import function_tool
+
+import flow_runner
 from flow_runner import sdk_trace_id
 
 FLOW = {
@@ -55,6 +61,76 @@ def test_a_failed_run_does_not_kill_the_worker(run_runner):
 def test_worker_exits_when_stdin_closes(run_runner):
     events, code, _ = run_runner()
     assert (events, code) == ([], 0)
+
+
+SUMMARIZE = {
+    "name": "summarize",
+    "description": "Summarize a text",
+    "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+    "toolType": "backend",
+    "toolId": "summarize-block",
+}
+
+
+def test_backend_tool_call_end_to_end(run_runner, openai_server, backend_server):
+    flow = {
+        "input": 'call:summarize:{"text": "a long text"}',
+        "agents": [{"id": "a", "instructions": "use the tool", "tools": [SUMMARIZE]}],
+        "edges": [],
+    }
+    events, code, stderr = run_runner(
+        flow, env={"API_URL": f"http://127.0.0.1:{backend_server.server_port}"}
+    )
+    assert code == 0, stderr
+
+    # 1. the model was offered the tool, with the schema of the flow
+    first, second = openai_server.requests
+    assert [(t["name"], t["parameters"]) for t in first["tools"]] == [
+        ("summarize", SUMMARIZE["parameters"])
+    ]
+    # 2. its call reached the API tool endpoint
+    assert backend_server.calls == [("/internal/tools/summarize-block", {"text": "a long text"})]
+    # 3. the tool output went back to the model
+    assert json.loads(second["input"][-1]["output"]) == {"summary": "short a long text"}
+    # 4. and the model's final answer is streamed
+    assert events[-1] == {"kind": "end"}
+    assert "".join(e["data"] for e in events[:-1]) == 'tool said: {"summary": "short a long text"}'
+
+
+def test_backend_tool_failure_is_reported_to_the_model(run_runner, openai_server):
+    flow = {
+        "input": 'call:summarize:{"text": "x"}',
+        "agents": [{"id": "a", "instructions": "use the tool", "tools": [SUMMARIZE]}],
+        "edges": [],
+    }
+    # Nothing listens on port 9: the POST fails, the run still ends cleanly.
+    events, code, stderr = run_runner(flow, env={"API_URL": "http://127.0.0.1:9"})
+    assert code == 0, stderr
+    assert events[-1] == {"kind": "end"}
+    assert openai_server.requests[1]["input"][-1]["output"].startswith("Error calling tool summarize:")
+
+
+@pytest.mark.asyncio
+async def test_function_tool_call_in_process(openai_server, monkeypatch, capsys):
+    @function_tool
+    def shout(text: str) -> str:
+        """Upper-case a text."""
+        return text.upper()
+
+    monkeypatch.setitem(flow_runner.LOCAL_TOOLS, "shout", shout)
+    monkeypatch.setenv("OPENAI_API_KEY", "dummy")
+    monkeypatch.setenv("OPENAI_BASE_URL", f"http://127.0.0.1:{openai_server.server_port}/v1")
+    monkeypatch.setenv("OPENAI_AGENTS_DISABLE_TRACING", "1")
+
+    await flow_runner.run_flow({
+        "input": 'call:shout:{"text": "abc"}',
+        "agents": [{"id": "a", "instructions": "", "tools": [
+            {"name": "shout", "description": "", "parameters": {}, "toolType": "function", "toolId": "shout"},
+        ]}],
+        "edges": [],
+    })
+    chunks = [json.loads(line)["data"] for line in capsys.readouterr().out.splitlines()]
+    assert "".join(chunks) == "tool said: ABC"
 
 
 def test_trace_id_uses_the_sdk_format():
