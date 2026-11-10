@@ -1,4 +1,7 @@
 # Runtime dependencies of the Python agent runners (see requirements-dev.txt for tests).
-openai-agents
+# Pinned: flow_runner.py codes against the SDK's Runner/FunctionTool API and
+# against openai's Responses event types. Bump both on purpose, with the tests.
+openai-agents==0.24.0
+openai==3.49.0
 python-dotenv
 requests>=2.34.2

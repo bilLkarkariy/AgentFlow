@@ -65,6 +65,12 @@ async def build_agent_map(payload: dict) -> dict[str, Agent]:
         id_to_agent[src].handoffs.append(id_to_agent[dst])
     return id_to_agent
 
+def sdk_trace_id(trace_id: str | None) -> str | None:
+    """The API sends its OpenTelemetry trace id (32 hex chars); the SDK wants `trace_<32 chars>`."""
+    if not trace_id or trace_id.startswith("trace_"):
+        return trace_id
+    return f"trace_{trace_id}"
+
 async def main():
     # Lecture JSON en entrée
     line = sys.stdin.readline()
@@ -81,12 +87,14 @@ async def main():
         print(json.dumps({"kind":"error","message":"No root agent found"}), flush=True)
         sys.exit(1)
 
-    # Configuration du run
-    run_cfg = RunConfig(
-        trace_id=payload.get("traceId"),
-        max_turns=payload.get("config", {}).get("max_turns", 8)
+    # Configuration du run. `max_turns` is an argument of the run, not a RunConfig field.
+    run_cfg = RunConfig(trace_id=sdk_trace_id(payload.get("traceId")))
+    stream = Runner.run_streamed(
+        agents[root_id],
+        payload.get("input", ""),
+        max_turns=(payload.get("config") or {}).get("max_turns", 8),
+        run_config=run_cfg,
     )
-    stream = Runner.run_streamed(agents[root_id], payload.get("input", ""), run_config=run_cfg)
 
     # Streaming des événements
     async for ev in stream.stream_events():
