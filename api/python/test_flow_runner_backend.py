@@ -32,21 +32,24 @@ def test_backend_tool_is_an_sdk_function_tool():
 @pytest.mark.asyncio
 async def test_backend_tool_posts_the_arguments_to_the_api(monkeypatch):
     captured = {}
-    def fake_post(url, json, timeout=None):
+    def fake_post(url, json, headers=None, timeout=None):
         captured['url'] = url
         captured['json'] = json
+        captured['headers'] = headers
         return DummyResponse({"ok": True})
     monkeypatch.setattr(flow_runner.requests, 'post', fake_post)
+    monkeypatch.setenv('INTERNAL_TOOLS_TOKEN', 'secret-token')
     tool = mk_backend_tool(TOOL_DEF)
     # what the SDK does when the model calls the tool
     result = await tool.on_invoke_tool(None, '{"a": 1}')
     assert json.loads(result) == {"ok": True}
     assert captured['url'].endswith('/internal/tools/foo-id')
     assert captured['json'] == {'a': 1}
+    assert captured['headers'] == {'X-Internal-Token': 'secret-token'}
 
 @pytest.mark.asyncio
 async def test_backend_tool_reports_an_http_failure_to_the_model(monkeypatch):
-    def failing_post(url, json, timeout=None):
+    def failing_post(url, json, headers=None, timeout=None):
         raise requests.ConnectionError("api down")
     monkeypatch.setattr(flow_runner.requests, 'post', failing_post)
     result = await mk_backend_tool(TOOL_DEF).on_invoke_tool(None, '{"a": 1}')

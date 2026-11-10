@@ -22,7 +22,8 @@ def openai_server():
 
 @pytest.fixture
 def backend_server():
-    """A fake NestJS tool endpoint; `server.calls` holds (path, body) of each POST."""
+    """A fake NestJS tool endpoint; `server.calls` holds (path, body) of each POST
+    and `server.tokens` the X-Internal-Token header it came with."""
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -30,6 +31,7 @@ def backend_server():
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             self.server.calls.append((self.path, body))
+            self.server.tokens.append(self.headers.get("X-Internal-Token"))
             data = json.dumps({"summary": f"short {body.get('text')}"}).encode()
             self.send_response(201)
             self.send_header("Content-Type", "application/json")
@@ -39,6 +41,7 @@ def backend_server():
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.calls = []
+    server.tokens = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield server
     server.shutdown()

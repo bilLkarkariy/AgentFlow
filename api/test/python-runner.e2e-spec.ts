@@ -16,6 +16,7 @@ import type { Pool } from 'generic-pool';
 import type { AgentPythonClientService } from '../src/modules/agent-runtime/agent-python-client.service';
 import type { FlowEngineService } from '../src/modules/agent-runtime/flow-engine.service';
 import { SummarizeBlock } from '../src/modules/agents/blocks/summarize-block';
+import { INTERNAL_TOOLS_TOKEN } from '../src/common/internal-token';
 import { FakeOpenAI, startFakeOpenAI, useFakeOpenAI } from './helpers/python-runner';
 
 const flow = (input: string, runId = 'run') => ({
@@ -33,7 +34,7 @@ describe('Python runner (integration, real process)', () => {
   let engine: FlowEngineService;
   // Stands for the API's POST /internal/tools/:toolId, which backend tools call.
   let toolBackend: Server;
-  const toolCalls: { url: string; body: any }[] = [];
+  const toolCalls: { url: string; body: any; token: string | string[] }[] = [];
 
   const run = async (payload: Record<string, any>): Promise<string> =>
     (await lastValueFrom(service.run(payload).pipe(toArray()))).join('');
@@ -50,7 +51,7 @@ describe('Python runner (integration, real process)', () => {
       req.on('data', (d) => (raw += d));
       req.on('end', () => {
         const body = JSON.parse(raw);
-        toolCalls.push({ url: req.url, body });
+        toolCalls.push({ url: req.url, body, token: req.headers['x-internal-token'] });
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ summary: `short ${body.text}` }));
       });
@@ -171,9 +172,9 @@ describe('Python runner (integration, real process)', () => {
     expect(offer.tools.map((t: any) => [t.name, t.parameters.required])).toEqual([
       ['summarize', ['text']],
     ]);
-    // ...its call reached the API tool endpoint...
+    // ...its call reached the API tool endpoint, with the token the API gave the runner...
     expect(toolCalls).toEqual([
-      { url: '/internal/tools/summarize-block', body: { text: 'a long text' } },
+      { url: '/internal/tools/summarize-block', body: { text: 'a long text' }, token: INTERNAL_TOOLS_TOKEN },
     ]);
     // ...and the tool output went back to the model, whose answer is streamed.
     expect(JSON.parse(followUp.input.at(-1).output)).toEqual({ summary: 'short a long text' });

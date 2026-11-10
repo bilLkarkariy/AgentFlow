@@ -79,7 +79,11 @@ def test_backend_tool_call_end_to_end(run_runner, openai_server, backend_server)
         "edges": [],
     }
     events, code, stderr = run_runner(
-        flow, env={"API_URL": f"http://127.0.0.1:{backend_server.server_port}"}
+        flow,
+        env={
+            "API_URL": f"http://127.0.0.1:{backend_server.server_port}",
+            "INTERNAL_TOOLS_TOKEN": "secret-token",
+        },
     )
     assert code == 0, stderr
 
@@ -88,8 +92,9 @@ def test_backend_tool_call_end_to_end(run_runner, openai_server, backend_server)
     assert [(t["name"], t["parameters"]) for t in first["tools"]] == [
         ("summarize", SUMMARIZE["parameters"])
     ]
-    # 2. its call reached the API tool endpoint
+    # 2. its call reached the API tool endpoint, with the internal token
     assert backend_server.calls == [("/internal/tools/summarize-block", {"text": "a long text"})]
+    assert backend_server.tokens == ["secret-token"]
     # 3. the tool output went back to the model
     assert json.loads(second["input"][-1]["output"]) == {"summary": "short a long text"}
     # 4. and the model's final answer is streamed

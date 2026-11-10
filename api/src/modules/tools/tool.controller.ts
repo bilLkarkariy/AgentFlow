@@ -1,8 +1,11 @@
-import { Controller, Post, Body, Param } from '@nestjs/common';
+import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { SummarizeService } from './summarize.service';
 import { GmailService } from '../gmail/gmail.service';
 import { SendMailDto } from '../gmail/dto/send-mail.dto';
+import { InternalTokenGuard } from '../../common/guards/internal-token.guard';
 
+/** Tools the Python runners call back; not for any other client. */
+@UseGuards(InternalTokenGuard)
 @Controller('internal/tools')
 export class ToolController {
   constructor(

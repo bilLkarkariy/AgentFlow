@@ -2,13 +2,15 @@ import { createPool, Factory, Pool } from 'generic-pool';
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 import { Logger } from '@nestjs/common';
 import path from 'path';
+import { INTERNAL_TOOLS_TOKEN } from '../../common/internal-token';
 
 // PYTHON_SCRIPTS_DIR / PYTHON_BIN are set by the container image; the defaults keep dev behaviour.
 const SCRIPTS_DIR = process.env.PYTHON_SCRIPTS_DIR ?? path.resolve(__dirname, '../../../python');
 const SCRIPT = path.join(SCRIPTS_DIR, 'flow_runner.py');
 const PYTHON_BIN = process.env.PYTHON_BIN ?? 'python';
 const PY_ARGS = ['-u', SCRIPT];           // '-u' => unbuffered stdout
-const ENV = { ...process.env, PYTHONUNBUFFERED: '1' };
+// The token is what lets a runner call back POST /internal/tools/:toolId.
+const ENV = { ...process.env, PYTHONUNBUFFERED: '1', INTERNAL_TOOLS_TOKEN };
 
 const logger = new Logger('PythonWorkerPool');
 

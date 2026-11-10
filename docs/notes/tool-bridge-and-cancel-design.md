@@ -65,7 +65,7 @@ export class ToolController {
   }
 }
 ```
-*Exposition interne seulement (pas auth), protégée par `networkPolicy: local` en k8s.*
+*Exposition interne seulement : la route exige le jeton `X-Internal-Token` que l'API transmet à ses runners au lancement (`InternalTokenGuard`).*
 
 ### 7.3  toOpenAITool in TypeScript  
 ```typescript

@@ -71,8 +71,9 @@ do not describe it as passing.
   after a timeout, a crash or an abandoned run. Keep it to one return per
   run.
 - Tools are SDK `FunctionTool` objects. A `backend` tool POSTs the model's
-  arguments to `POST /internal/tools/:toolId`; a `function` tool is looked
-  up in `flow_runner.LOCAL_TOOLS`.
+  arguments to `POST /internal/tools/:toolId`, with the `X-Internal-Token`
+  the pool put in the runner's environment (`api/src/common/internal-token.ts`);
+  a `function` tool is looked up in `flow_runner.LOCAL_TOOLS`.
 - `openai-agents` and `openai` are pinned in `api/python/requirements.txt`.
   Bump them on purpose, with the tests.
 

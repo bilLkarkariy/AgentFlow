@@ -94,7 +94,8 @@ How a flow runs:
     `GET /api/dlq/bull/agent-run`.
 - Agents can call back into the API through backend tools: a tool of the
   flow is exposed to the model as a function, and its call is sent to
-  `POST /internal/tools/:toolId`.
+  `POST /internal/tools/:toolId`. That route only answers the runners: the
+  API hands them a token at spawn time and rejects any other caller.
 - The other BullMQ queues on Redis carry background jobs that run inside
   the API: Slack alerts on 5xx responses, HubSpot webhook events and Gmail
   jobs.
@@ -432,6 +433,9 @@ Parts of the product surface are still prototypes:
   fetch processor and the generic webhook trigger stop at a `TODO` or have
   no consumer.
 - The studio ships Storybook stories, but no Storybook configuration.
+- The API has no user authentication or authorization, and CORS is open:
+  apart from `/internal/tools`, every route answers anyone who can reach
+  it. Do not expose it as is.
 - Asynchronous runs survive the death of an API replica, not a broker
   restart: the `gmail.events` exchange is not durable, its messages are
   not persistent, and a rejected message has no dead-letter queue.

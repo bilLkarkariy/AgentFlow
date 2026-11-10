@@ -25,12 +25,14 @@ def mk_backend_tool(tool: dict, timeout: float = None) -> FunctionTool:
     # timeout in seconds
     timeout = timeout or float(os.getenv("API_TIMEOUT", "30"))
     url = f"{base}/internal/tools/{tool['toolId']}"
+    # The API only serves /internal to the runners it spawned (see internal-token.ts).
+    headers = {"X-Internal-Token": os.getenv("INTERNAL_TOOLS_TOKEN", "")}
 
     async def on_invoke_tool(_ctx, arguments: str) -> str:
         try:
             # requests is blocking: keep the event loop free while the API answers.
             resp = await asyncio.to_thread(
-                requests.post, url, json=json.loads(arguments or "{}"), timeout=timeout
+                requests.post, url, json=json.loads(arguments or "{}"), headers=headers, timeout=timeout
             )
             resp.raise_for_status()
             return json.dumps(resp.json())
