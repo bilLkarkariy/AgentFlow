@@ -22,7 +22,7 @@ controller:
     # Creates the metrics Service on :8090 (rollout_info, analysis_run_info).
     enabled: true
     serviceMonitor:
-      # WP8 scrapes through the annotated-pods ScrapeConfig instead.
+      # Prometheus scrapes through the annotated-pods ScrapeConfig instead.
       enabled: false
   podAnnotations:
     prometheus.io/scrape: "true"

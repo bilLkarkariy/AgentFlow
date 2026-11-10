@@ -7,11 +7,11 @@ of a `terraform apply` stays small and `make local-down` is always clean.
 ```
 infra/
   envs/
-    local/            kind cluster + ArgoCD + the platform-root Application   (WP7)
-    aws-demo/         VPC, EKS, RDS, EIPs, IRSA + ArgoCD                      (WP12)
-  bootstrap/          S3 state bucket, budget, GitHub OIDC, secret shells     (WP11)
+    local/            kind cluster + ArgoCD + the platform-root Application
+    aws-demo/         VPC, EKS, RDS, EIPs, IRSA + ArgoCD
+  bootstrap/          S3 state bucket, budget, GitHub OIDC, secret shells
   modules/
-    kind_cluster/     kind topology and host port mappings                    (WP7)
+    kind_cluster/     kind topology and host port mappings
 ```
 
 ## What `infra/envs/local` creates
@@ -106,7 +106,7 @@ terraform -chdir=infra/envs/local providers lock \
 
 Local state on purpose for `infra/envs/local`: the cluster is disposable and
 `*.tfstate` is gitignored. Only the AWS environments use the S3 backend
-(`infra/bootstrap`, WP11).
+(`infra/bootstrap`).
 
 ## Troubleshooting
 

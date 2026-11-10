@@ -102,7 +102,7 @@ controller:
   metrics:
     enabled: true
     serviceMonitor:
-      # WP8 scrapes through the `annotated-pods` ScrapeConfig; enabling the
+      # Prometheus scrapes through the `annotated-pods` ScrapeConfig; enabling the
       # ServiceMonitor here would fail before kube-prometheus-stack exists.
       enabled: false
   podAnnotations:

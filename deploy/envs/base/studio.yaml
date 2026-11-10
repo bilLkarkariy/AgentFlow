@@ -47,7 +47,7 @@ runtimeConfig:
   enabled: true
   values: {}
 
-# Contract with WP3: nginx serves /healthz for all three probes.
+# Contract with the studio image: nginx serves /healthz for all three probes.
 probes:
   startup:
     enabled: true

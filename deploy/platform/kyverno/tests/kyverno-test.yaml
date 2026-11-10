@@ -4,7 +4,7 @@
 #   kyverno test deploy/platform/kyverno/tests
 #
 # Also run by scripts/verify-security.sh and by the deploy-validate
-# workflow (WP6). The policies are read from policies/base, so the suite
+# workflow. The policies are read from policies/base, so the suite
 # checks the shared definitions; the only per-environment difference is
 # the failureAction of verify-image-signatures, which the overlays patch.
 #

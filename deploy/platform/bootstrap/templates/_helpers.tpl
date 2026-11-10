@@ -42,7 +42,7 @@ true
 {{- end -}}
 
 {{/*
-Sync options shared by every Application (plan section 5) plus the per
+Sync options shared by every Application plus the per
 component extras.
 Usage: include "bootstrap.syncOptions" (dict "component" $c "root" $)
 */}}

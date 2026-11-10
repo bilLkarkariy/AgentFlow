@@ -1,5 +1,5 @@
 ########################################################################
-# ClusterAnalysisTemplate consumed by the api Rollout (plan Annexe C).
+# ClusterAnalysisTemplate consumed by the api Rollout (ADR 0006).
 #
 # The Rollout passes:
 #   workload        agentflow-api

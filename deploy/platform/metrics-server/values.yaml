@@ -13,7 +13,7 @@ resources:
   limits:
     memory: 192Mi
 
-# Scraped through the annotated-pods ScrapeConfig (WP8), not a ServiceMonitor.
+# Scraped through the annotated-pods ScrapeConfig, not a ServiceMonitor.
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "10250"

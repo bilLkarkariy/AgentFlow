@@ -31,7 +31,7 @@ podLabels:
 prometheus:
   enabled: true
   servicemonitor:
-    # WP8 scrapes via the annotated-pods ScrapeConfig.
+    # Prometheus scrapes via the annotated-pods ScrapeConfig.
     enabled: false
   podmonitor:
     enabled: false

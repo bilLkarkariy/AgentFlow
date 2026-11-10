@@ -134,7 +134,7 @@ jobs:
             done
           done
           if [ "$rendered" -eq 0 ]; then
-            echo "::warning::deploy/envs/{local,aws} holds no service values yet (WP5)"
+            echo "::warning::deploy/envs/{local,aws} holds no service values yet"
           fi
 
       - name: Render the infra chart for every env
@@ -179,7 +179,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! compgen -G 'deploy/argocd/envs/*/*.yaml' > /dev/null; then
-            echo "::notice::deploy/argocd/envs is empty (WP5), skipping"
+            echo "::notice::deploy/argocd/envs is empty, skipping"
             exit 0
           fi
           "${RUNNER_TEMP}/kc" deploy/argocd/envs/*/*.yaml
@@ -202,7 +202,7 @@ jobs:
                 echo "::notice::${overlay} does not exist yet, skipping"
                 continue
               fi
-              # A directory without a kustomization file is a work package
+              # A directory without a kustomization file is work
               # still in flight, not a regression: warn loudly, do not fail.
               if [ ! -f "${overlay}/kustomization.yaml" ] && [ ! -f "${overlay}/kustomization.yml" ]; then
                 echo "::warning::${overlay} has no kustomization.yaml, skipping"
@@ -238,7 +238,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -x scripts/check-rules.sh ]; then
-            echo "::notice::scripts/check-rules.sh does not exist yet (WP8), skipping"
+            echo "::notice::scripts/check-rules.sh does not exist yet, skipping"
             exit 0
           fi
           ./scripts/check-rules.sh
@@ -264,7 +264,7 @@ jobs:
           policies=deploy/platform/kyverno/policies/base
           tests=deploy/platform/kyverno/tests
           if [ ! -d "$policies" ]; then
-            echo "::notice::${policies} does not exist yet (WP9), skipping"
+            echo "::notice::${policies} does not exist yet, skipping"
             exit 0
           fi
           if [ ! -d "$tests" ]; then

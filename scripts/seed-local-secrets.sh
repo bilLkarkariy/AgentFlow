@@ -2,7 +2,7 @@
 #
 # Seeds the local secret source read by External Secrets.
 #
-# Locally the ClusterSecretStore `agentflow` (WP9) uses the `kubernetes`
+# Locally the ClusterSecretStore `agentflow` uses the `kubernetes`
 # provider and points at namespace `platform-secrets`. This script fills
 # that namespace from the developer's own .env, so no credential is ever
 # committed.

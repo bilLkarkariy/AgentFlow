@@ -85,7 +85,7 @@ spec:
 
 {{- if ne .Values.agentflowApps.enabled false }}
 ---
-# Wave 20: hands over to the application layer (WP5). Every file under
+# Wave 20: hands over to the application layer. Every file under
 # deploy/argocd/envs/<env> is an Application or an ApplicationSet.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

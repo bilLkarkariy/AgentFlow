@@ -27,7 +27,7 @@ global:
 
   # The istio-cni component (aws only) installs the CNI plugin, which removes
   # the privileged istio-init container from every workload pod.
-  # TODO (WP12/WP13): keep in sync with componentOverrides.istio-cni.enabled.
+  # TODO: keep in sync with componentOverrides.istio-cni.enabled.
   platform: ""
 
 cni:

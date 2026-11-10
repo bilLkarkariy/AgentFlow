@@ -6,7 +6,7 @@ provider "aws" {
   region = var.region
 
   # Every resource carries the demo tags, including the ones created deep
-  # inside the modules. scripts/aws-check-clean.sh (WP13) hunts leftovers
+  # inside the modules. scripts/aws-check-clean.sh hunts leftovers
   # by `Stack=aws-demo`, so this must stay exhaustive.
   default_tags {
     tags = local.tags

@@ -7,7 +7,7 @@
 # needed for that is switched off to keep the kind cluster small:
 #   - reports controller  -> no PolicyReports (see features.* below)
 #   - cleanup controller  -> no CleanupPolicy support
-#   - Grafana dashboard   -> WP8 owns the dashboards
+#   - Grafana dashboard   -> dashboards live in monitoring-config
 ########################################################################
 
 # Helm owns the CRDs so ArgoCD can diff them like any other resource.
@@ -82,7 +82,7 @@ admissionController:
     # platform-wide layer label instead of colliding with it.
     agentflow.io/layer: security
 
-  # WP8 scrapes annotated pods with a Prometheus ScrapeConfig; the
+  # Prometheus scrapes annotated pods with a Prometheus ScrapeConfig; the
   # metrics server listens on 8000 (admissionController.metricsService.port).
   podAnnotations:
     prometheus.io/scrape: "true"
@@ -150,7 +150,7 @@ cleanupController:
   # No CleanupPolicy / ClusterCleanupPolicy is shipped by this repo.
   enabled: false
 
-# WP8 owns Grafana; the bundled Kyverno dashboard is not wired in.
+# The bundled Kyverno dashboard is not wired into Grafana.
 grafana:
   enabled: false
 

@@ -3,5 +3,5 @@ kind: Kustomization
 
 resources:
   - ../../base
-  # Admin UIs are only published locally (see plan section 5).
+  # Admin UIs are only published locally.
   - virtualservices.yaml

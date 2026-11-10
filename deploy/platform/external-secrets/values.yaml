@@ -45,7 +45,7 @@ serviceAccount:
 podLabels:
   agentflow.io/layer: security
 
-# WP8 scrapes annotated pods (no ServiceMonitor in mesh mode).
+# Prometheus scrapes annotated pods (no ServiceMonitor in mesh mode).
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8080"

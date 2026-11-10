@@ -1,5 +1,5 @@
 ########################################################################
-# The single ingress point of the mesh (plan section 5).
+# The single ingress point of the mesh.
 # Selects the istio/gateway release deployed in namespace istio-ingress.
 #
 # `hosts: "*"` on purpose: routing is decided by the VirtualServices, so a

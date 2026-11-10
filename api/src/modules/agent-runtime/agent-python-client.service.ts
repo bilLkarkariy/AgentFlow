@@ -18,7 +18,7 @@ import { pythonWorkerPool } from './python-worker.pool';
  * `end` or `error`. The worker is returned to the pool or destroyed exactly
  * once per run (see `finish`).
  *
- * This is the single emission point for the agent metrics of Annexe F: every
+ * This is the single emission point for the agent metrics: every
  * run ends here exactly once with a status, a duration, a chunk count and the
  * resulting spend. The circuit breaker state is mirrored to Prometheus on each
  * transition.

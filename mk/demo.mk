@@ -1,5 +1,5 @@
 ########################################################################
-# Canary and chaos demo (WP14).
+# Canary and chaos demo.
 #
 # The three targets below are the whole progressive-delivery story:
 #

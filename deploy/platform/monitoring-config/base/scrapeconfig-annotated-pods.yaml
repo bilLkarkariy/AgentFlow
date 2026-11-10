@@ -60,7 +60,7 @@ spec:
       replacement: $1:$2
 
     # 4. Identity. `app` and `version` are set on every AgentFlow pod by
-    #    the agentflow-service chart (plan section 5) and are what the
+    #    the agentflow-service chart and are what the
     #    dashboards slice on.
     - action: replace
       sourceLabels: [__meta_kubernetes_namespace]

@@ -430,6 +430,9 @@ Parts of the product surface are still prototypes:
 
 ## Documentation
 
+- [`AGENTS.md`](AGENTS.md): how to work in this repository, for coding
+  agents and for people: commands, checks, the runner protocol and the
+  rules a change has to follow
 - [`docs/ops/README.md`](docs/ops/README.md): operations hub, with the
   runbooks (kind, AWS), cost, security and a 10-minute demo script
 - [`docs/adr/README.md`](docs/adr/README.md): ten architecture decision

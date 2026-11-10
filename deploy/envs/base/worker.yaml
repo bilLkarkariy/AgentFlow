@@ -12,7 +12,7 @@ image:
   repository: ghcr.io/billkarkariy/agentflow-worker
   pullPolicy: IfNotPresent
 
-# Prometheus exporter and health endpoint of the worker (WP2), not an app port.
+# Prometheus exporter and health endpoint of the worker, not an app port.
 containerPort: 9100
 
 # No inbound traffic: no Service, and therefore no ServiceMonitor either
@@ -43,7 +43,7 @@ config:
 secrets:
   existingSecret: agentflow-worker-secrets
 
-# Contract with WP2: the worker serves /healthz on the metrics port. There is
+# Contract with the worker: the worker serves /healthz on the metrics port. There is
 # no /health, so every probe points at /healthz.
 probes:
   startup:

@@ -2,7 +2,7 @@
 # AgentFlow images must carry a valid keyless cosign signature produced by
 # this repository's GitHub Actions workflows.
 #
-# The CI job (.github/workflows/build-images.yml, WP6) signs each digest
+# The CI job (.github/workflows/build-images.yml) signs each digest
 # with `cosign sign --yes` using the workflow's OIDC token. The resulting
 # certificate has:
 #   issuer  = https://token.actions.githubusercontent.com

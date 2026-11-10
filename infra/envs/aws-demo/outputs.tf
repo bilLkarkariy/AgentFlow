@@ -1,7 +1,7 @@
 ########################################################################
 # Outputs.
 #
-# CONTRACT with WP13 (scripts/aws-up.sh, aws-render-env.sh, aws-down.sh,
+# CONTRACT with the AWS lifecycle scripts (scripts/aws-up.sh, aws-render-env.sh, aws-down.sh,
 # aws-check-clean.sh). These names are read by `terraform output -json`;
 # renaming one breaks the lifecycle scripts, so treat them as an API.
 ########################################################################

@@ -3,7 +3,7 @@
 #
 # There is no private subnet and no NAT gateway on purpose: a NAT gateway
 # costs 0.045 USD/h plus 0.045 USD/GB, which is more than the rest of this
-# demo put together (Annexe G, ADR 0002). Nodes therefore sit in public
+# demo put together (ADR 0002). Nodes therefore sit in public
 # subnets with public IPs, protected by the EKS node security group.
 # The interview answer to "would you ship this?" is in the README.
 #

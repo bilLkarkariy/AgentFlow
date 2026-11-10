@@ -100,7 +100,7 @@ skips the block entirely.
 ## Cost
 
 eu-west-1, on-demand list prices for the fixed parts, spot for the nodes
-(figures from Annexe G; re-measure in Cost Explorer the day after a session and
+(estimates; re-measure in Cost Explorer the day after a session and
 record the real numbers in `docs/ops/cost.md`).
 
 | Item | Rate |
@@ -142,7 +142,7 @@ If `aws-up` fails with `InsufficientInstanceCapacity`, `UnfulfillableCapacity`
 or "no Spot capacity available":
 
 ```
-CAPACITY_TYPE=ON_DEMAND make aws-up      # WP13 passes it through
+CAPACITY_TYPE=ON_DEMAND make aws-up      # scripts/aws-up.sh passes it through
 # or
 terraform -chdir=infra/envs/aws-demo apply -var 'capacity_type=ON_DEMAND'
 ```

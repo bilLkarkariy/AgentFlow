@@ -80,7 +80,7 @@ resource "helm_release" "platform_root" {
       "global.aws.accountId" = local.account_id
 
       # IRSA role ARNs and the bucket name, so deploy/platform/*/values-aws.yaml
-      # can stop carrying PLACEHOLDER literals once WP13 wires them through.
+      # can stop carrying PLACEHOLDER literals once scripts/aws-up.sh wires them through.
       "global.aws.esoRoleArn"  = aws_iam_role.eso.arn
       "global.aws.lokiRoleArn" = aws_iam_role.loki.arn
       "global.aws.lokiBucket"  = aws_s3_bucket.loki.id

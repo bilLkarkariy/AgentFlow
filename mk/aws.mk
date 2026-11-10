@@ -1,5 +1,5 @@
 ########################################################################
-# Ephemeral AWS demo on EKS (WP13).
+# Ephemeral AWS demo on EKS.
 #
 # The whole environment exists for the length of a demo and is then
 # deleted: about 0.24 USD per hour, ~1 USD for a session. Two commands

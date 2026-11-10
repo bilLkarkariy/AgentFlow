@@ -8,7 +8,7 @@
 # Chart versions MUST stay in sync with deploy/versions.yaml, which is what
 # Terraform reads. deploy/versions.yaml is the source of truth; a Helm chart
 # cannot read a file outside its own directory, hence the duplication.
-# `make lint-deploy` (WP5) is the place to add a drift check.
+# `make lint-deploy` is the place to add a drift check.
 ########################################################################
 
 global:
@@ -25,7 +25,7 @@ global:
   # Filled by infra/envs/aws-demo (ingress EIPs, IRSA role ARNs, ...).
   aws: {}
 
-# Wave 20 hand-over to the application layer (WP5 owns deploy/argocd/envs).
+# Wave 20 hand-over to the application layer (deploy/argocd/envs).
 agentflowApps:
   enabled: true
   wave: 20
@@ -164,7 +164,7 @@ components:
     type: directory
     path: deploy/platform/argo-rollouts/manifests
 
-  # --- waves 9-12: observability (WP8 owns the values files) --------------
+  # --- waves 9-12: observability -----------------------------------------
   - name: kube-prometheus-stack
     wave: 9
     namespace: observability
@@ -219,7 +219,7 @@ components:
     chart: opentelemetry-collector
     version: 0.172.1
     # The values file sets fullnameOverride: otel-collector so that the
-    # Service is otel-collector.observability.svc (plan section 5).
+    # Service is otel-collector.observability.svc (docs/ops/architecture.md).
     releaseName: otel-collector
     valuesDir: deploy/platform/otel-collector
 
@@ -239,7 +239,7 @@ components:
     releaseName: kiali
     valuesDir: deploy/platform/kiali
 
-  # --- waves 13-17: security (WP9 owns the values files) ------------------
+  # --- waves 13-17: security ---------------------------------------------
   - name: kyverno
     wave: 13
     namespace: kyverno

@@ -3,10 +3,10 @@
 #
 # Egress 4317 / 4318 -> the OTel collector in namespace observability.
 #   4318 is OTLP/HTTP, used by the API's NodeSDK
-#   (OTEL_EXPORTER_OTLP_ENDPOINT, plan section 5); 4317 is OTLP/gRPC, used
+#   (OTEL_EXPORTER_OTLP_ENDPOINT); 4317 is OTLP/gRPC, used
 #   by the Istio sidecars through the `otel-tracing` extension provider.
 #   The rule targets the whole namespace rather than the collector's pod
-#   labels: those labels belong to WP8's chart values, and a silent
+#   labels: those labels belong to the observability chart values, and a silent
 #   relabelling there would turn into "traces stopped arriving" here.
 #
 # Ingress from observability on any port -> Prometheus scraping.

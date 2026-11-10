@@ -81,7 +81,7 @@ extraEnv:
       fieldRef:
         fieldPath: metadata.labels['version']
 
-# Contract with WP1: GET /health is liveness, GET /health/ready is the
+# Contract with the api: GET /health is liveness, GET /health/ready is the
 # Terminus check (Postgres, Redis, RabbitMQ).
 probes:
   startup:

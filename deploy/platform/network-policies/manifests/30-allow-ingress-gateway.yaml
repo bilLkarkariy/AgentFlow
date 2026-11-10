@@ -6,7 +6,7 @@
 # database, Redis and RabbitMQ have no path from the internet at all -
 # that is the point of putting the gateway in its own namespace.
 #
-# Ports are the application ports (plan section 5): the gateway dials the
+# Ports are the application ports: the gateway dials the
 # pod IP on 3000 / 8080 and the sidecar intercepts it, so what the CNI
 # sees - and what this policy has to allow - is the app port.
 ########################################################################

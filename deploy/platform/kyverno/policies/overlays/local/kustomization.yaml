@@ -11,7 +11,7 @@
 # rewrite the image reference while only auditing it.
 #
 # Flip both back to Enforce/true once the GHCR images are signed and pulled
-# instead of side-loaded (plan phase 2, step 6).
+# instead of side-loaded.
 ########################################################################
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

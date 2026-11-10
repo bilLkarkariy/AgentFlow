@@ -107,7 +107,7 @@ alloy:
         }
 
         // app / version are set on every AgentFlow pod by the
-        // agentflow-service chart (plan section 5).
+        // agentflow-service chart.
         rule {
           source_labels = ["__meta_kubernetes_pod_label_app"]
           target_label  = "app"

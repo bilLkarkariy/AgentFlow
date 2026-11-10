@@ -2,7 +2,7 @@
  * OpenTelemetry bootstrap. Imported first by `main.ts` so that the
  * auto-instrumentations can patch the modules before Nest loads them.
  *
- * Configuration is entirely environment driven (see plan §5 "Env api"):
+ * Configuration is entirely environment driven (see docs/ops/architecture.md, Environment):
  *   OTEL_SDK_DISABLED            true -> no SDK at all (also implied under Jest)
  *   OTEL_EXPORTER_OTLP_ENDPOINT  base OTLP/http endpoint, e.g. http://otel-collector:4318
  *   OTEL_SERVICE_NAME            service.name (default agentflow-api)

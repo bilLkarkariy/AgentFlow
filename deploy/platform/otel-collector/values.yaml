@@ -8,7 +8,7 @@
 #
 # fullnameOverride pins the Service name to `otel-collector`, which is
 # what OTEL_EXPORTER_OTLP_ENDPOINT and the istiod extensionProvider point
-# at (plan section 5).
+# at (docs/ops/architecture.md, Observability endpoints).
 ########################################################################
 
 mode: deployment

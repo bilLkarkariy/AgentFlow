@@ -2,7 +2,7 @@
 
 Three pictures and one table. The pictures answer "where does a request go",
 "what installs what" and "how does a commit become a pod". The table is the
-contract every work package writes against.
+contract every part of the platform is written against.
 
 - [AWS topology](#1-aws-topology)
 - [In-cluster layers, by sync wave](#2-in-cluster-layers-by-sync-wave)
@@ -183,7 +183,7 @@ system the repository is the only place a rollback can be durable.
 
 ## 4. Contracts
 
-Everything below is fixed across work packages. Changing one side without the
+Everything below is fixed across the platform. Changing one side without the
 other is how a platform breaks quietly.
 
 ### Namespaces

@@ -34,7 +34,7 @@ export interface AgentRunSample {
 }
 
 /**
- * Owns every `agentflow_*` application metric (plan Annexe F).
+ * Owns every `agentflow_*` application metric (contract: api/src/docs/architecture/worker.md).
  *
  * Labels are deliberately low cardinality: `model` is bounded by
  * `PricingService.normalizeModel()` and there is no `jobId` anywhere.

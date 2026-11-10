@@ -1,5 +1,5 @@
 ########################################################################
-# Charts, values and GitOps manifests (WP5).
+# Charts, values and GitOps manifests.
 #
 # `make lint-deploy` is the gate: nothing under deploy/ reaches ArgoCD
 # without passing it, and .github/workflows/deploy-validate.yml runs the

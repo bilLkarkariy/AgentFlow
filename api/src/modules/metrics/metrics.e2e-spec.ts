@@ -52,7 +52,7 @@ describe('Metrics E2E', () => {
     expect(body).toMatch(/agentflow_queue_depth\{queue="agent-run",state="failed"\} 4/);
   }, 10000);
 
-  it('exposes the Annexe F metric contract with build info', async () => {
+  it('exposes the metric contract with build info', async () => {
     const body = await scrape();
 
     const families = new Set(

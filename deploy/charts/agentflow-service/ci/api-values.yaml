@@ -1,5 +1,5 @@
 # Profile "api": Rollout + Istio canary + analysis + migrations + database.
-# Mirrors deploy/envs/base/api.yaml (WP5); only used by helm lint / kubeconform.
+# Mirrors deploy/envs/base/api.yaml; only used by helm lint / kubeconform.
 appLabel: api
 image:
   repository: ghcr.io/billkarkariy/agentflow-api

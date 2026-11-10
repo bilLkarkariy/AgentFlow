@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Verifies the security layer of the platform (WP9).
+# Verifies the security layer of the platform.
 #
 #   scripts/verify-security.sh          offline checks, then live ones if
 #                                       a cluster is reachable
@@ -8,7 +8,7 @@
 #
 # Offline (always):
 #   1. kyverno test        - the policy regression suite
-#   2. kustomize + kubeconform on every overlay this WP owns
+#   2. kustomize + kubeconform on every security overlay
 #   3. kubeconform on the NetworkPolicies
 #
 # Live (only when `kubectl cluster-info` answers):

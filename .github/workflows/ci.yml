@@ -48,6 +48,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # No path from a developer machine, no reference to a plan that is not
+      # in the repository (AGENTS.md, Rules).
+      - name: Repository hygiene
+        run: scripts/check-repo-hygiene.sh
+
       # pnpm first: setup-node's `cache: pnpm` needs pnpm on the PATH.
       # action-setup@v4 reads the version from packageManager in package.json.
       - name: Set up pnpm

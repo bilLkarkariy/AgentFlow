@@ -11,7 +11,7 @@
 # ArgoCD is installed (global.domain). Allocating them from the LB
 # controller instead would make the domain change on every `aws-up`.
 #
-# An unassociated EIP costs 0.005 USD/h. aws-check-clean.sh (WP13) fails
+# An unassociated EIP costs 0.005 USD/h. aws-check-clean.sh fails
 # if either survives a teardown.
 ########################################################################
 

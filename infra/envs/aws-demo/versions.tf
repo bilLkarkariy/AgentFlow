@@ -1,7 +1,7 @@
 ########################################################################
 # AgentFlow - ephemeral EKS demo environment (eu-west-1).
 #
-# Provider pins mirror plan section 5 / Annexe G:
+# Provider pins:
 #   aws    6.x  (the vpc >= 6.28 / eks >= 6.59 modules require it)
 #   helm   3.x  (attribute syntax for the `kubernetes` block)
 #   random      (database / broker / Grafana passwords)

@@ -3,7 +3,7 @@
 #
 # Partial configuration on purpose: the bucket name embeds the AWS account
 # id, which is not known until `aws sts get-caller-identity` runs. The
-# values are supplied by scripts/aws-up.sh (WP13):
+# values are supplied by scripts/aws-up.sh:
 #
 #   terraform init -reconfigure \
 #     -backend-config="bucket=agentflow-tfstate-<account_id>" \

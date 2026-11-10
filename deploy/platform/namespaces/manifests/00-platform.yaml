@@ -1,5 +1,5 @@
 ########################################################################
-# The platform owns every namespace (plan section 5). Application charts
+# The platform owns every namespace. Application charts
 # never create one, so a `helm uninstall` can never take a namespace with
 # it.
 ########################################################################

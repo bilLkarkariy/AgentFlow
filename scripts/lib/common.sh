@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 ########################################################################
-# Shared helpers for the AWS lifecycle scripts (WP13).
+# Shared helpers for the AWS lifecycle scripts.
 #
 # Sourced, never executed:
 #

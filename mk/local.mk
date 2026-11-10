@@ -1,5 +1,5 @@
 ########################################################################
-# Local kind cluster (WP7).
+# Local kind cluster.
 #
 # `make local-up` is the single command that turns an empty laptop into the
 # full platform: kind cluster, ArgoCD, and then ArgoCD reconciles

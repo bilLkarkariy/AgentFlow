@@ -14,7 +14,7 @@
 #       `kind create cluster` with Cilium.
 #   EKS (VPC CNI)                    -> enforced when the aws-node addon
 #       runs with `enableNetworkPolicy: true` (set by the EKS Terraform,
-#       WP11). That is the environment where these files matter.
+#       infra/envs/aws-demo). That is the environment where these files matter.
 #
 # So: on kind these are documentation and a lint target; on EKS they are
 # the real thing. Saying otherwise in an interview is a trap.
@@ -24,7 +24,7 @@
 # ---------------------------------------------------------------------
 # 1. NetworkPolicy is L3/L4 only. It says "pod X may open a TCP connection
 #    to pod Y on port Z", never "with a valid identity". Istio mTLS STRICT
-#    (PeerAuthentication, WP7) is the L7 half of the same story, and
+#    (PeerAuthentication) is the L7 half of the same story, and
 #    AuthorizationPolicy is what expresses "who may call what". The two
 #    layers are deliberately independent: a bug in one does not open the
 #    other.

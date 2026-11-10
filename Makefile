@@ -2,10 +2,10 @@
 # AgentFlow - operator entry point.
 #
 # Targets live in mk/*.mk, one file per domain:
-#   mk/local.mk   kind cluster lifecycle          (WP7)
-#   mk/deploy.mk  chart and manifest linting      (WP5)
-#   mk/aws.mk     EKS demo lifecycle              (WP13)
-#   mk/demo.mk    canary / chaos demo scripts     (WP14)
+#   mk/local.mk   kind cluster lifecycle
+#   mk/deploy.mk  chart and manifest linting
+#   mk/aws.mk     EKS demo lifecycle
+#   mk/demo.mk    canary / chaos demo scripts
 #
 # `make` with no argument prints this help.
 ########################################################################
@@ -24,7 +24,7 @@ KUBE_CONTEXT  ?= kind-$(KIND_CLUSTER)
 ARGOCD_NS     ?= argocd
 export DOMAIN KUBE_CONTEXT ARGOCD_NS
 
-# Glob include: a work package adds a file, not a line here.
+# Glob include: a new area adds a file, not a line here.
 -include mk/*.mk
 
 ##@ General
