@@ -1,0 +1,8 @@
+# Findings reviewed and accepted. One fingerprint per line, with the reason.
+# Format: <commit>:<file>:<rule>:<line> (printed by `gitleaks detect -v`).
+
+# `adminPassword` of the Keycloak chart that the first commit installed in the
+# local kind cluster: a development default for a cluster that only ever ran
+# on a laptop, not a credential of any hosted service. The release was removed
+# in 4176d6b and Keycloak is no longer part of the platform.
+f09f38c74ac6fa956d9a6259bbdf68404c80b4c2:infra/envs/local/main.tf:hashicorp-tf-password:71

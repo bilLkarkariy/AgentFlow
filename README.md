@@ -405,6 +405,7 @@ paths.
 | Workflow | Runs on | What it checks or does |
 |---|---|---|
 | [CI](.github/workflows/ci.yml) | pushes and pull requests touching application code | Lint; typecheck; build the api, studio and dashboard; unit tests (api, studio, dashboard); api e2e tests against PostgreSQL, Redis and RabbitMQ; pytest for `api/python` and `worker` |
+| [Secret scan](.github/workflows/secret-scan.yml) | every push to `main` and every pull request | `gitleaks detect` over the whole history; accepted findings are listed in `.gitleaksignore` with their reason |
 | [Build & Publish Images](.github/workflows/build-images.yml) | the same, for image inputs | Build the four images for amd64 and arm64. On `main` it also: pushes a multi-arch image to GHCR, runs a Trivy scan that blocks on CRITICAL, signs with cosign (keyless), attaches an SPDX SBOM attestation, then commits the new tag to `deploy/envs/local` for Argo CD |
 | [Deploy Validation](.github/workflows/deploy-validate.yml) | changes under `deploy/` | `helm lint`; `kubeconform` on every rendered manifest; `kyverno test`; `promtool`; `istioctl analyze` |
 | [Terraform CI](.github/workflows/terraform-ci.yml) | changes under `infra/` and to the AWS scripts | `terraform fmt` and `validate`; `tflint`; Trivy config scan; `shellcheck` and `actionlint`; a dry run of `aws-up` and `aws-down` |
