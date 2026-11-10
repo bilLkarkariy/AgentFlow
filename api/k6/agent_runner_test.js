@@ -15,7 +15,8 @@ export const options = {
 
 export default function () {
   const url = 'http://localhost:3000/agent/run';
-  const payload = JSON.stringify({ prompt: 'Hello from k6' });
+  // AGENT_ID: an agent whose flow is saved (PUT /agents/:id/flow).
+  const payload = JSON.stringify({ agentId: __ENV.AGENT_ID, input: 'Hello from k6' });
   const params = { headers: { 'Content-Type': 'application/json' } };
 
   const res = http.post(url, payload, params);

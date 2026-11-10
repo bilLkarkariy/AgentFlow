@@ -3,5 +3,4 @@
 # against openai's Responses event types. Bump both on purpose, with the tests.
 openai-agents==0.24.0
 openai==3.49.0
-python-dotenv
 requests>=2.34.2

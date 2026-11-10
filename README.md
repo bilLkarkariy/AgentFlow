@@ -71,9 +71,12 @@ How a flow runs:
   every edge into a handoff, and validates the payload with Zod
   (`api/src/common/schemas/flow-payload.zod.ts`).
 - The payload goes to a pool of `api/python/flow_runner.py` processes that
-  the API spawns: 2 warm, 10 at most. The runner drives
-  `Runner.run_streamed` from the OpenAI Agents SDK and streams JSON chunks
-  back. On the Node side the call has a timeout and a circuit breaker.
+  the API spawns: 2 warm, 10 at most. A runner is a long-lived worker: it
+  reads one payload per stdin line, drives `Runner.run_streamed` from the
+  OpenAI Agents SDK, streams JSON chunks back and ends every run with an
+  `end` or `error` event, then takes the next payload. On the Node side the
+  call has a timeout and a circuit breaker; a worker that times out or
+  crashes is destroyed and replaced.
 - A flow can run:
   - synchronously, streamed as Server-Sent Events:
     `POST /agents/:id/flow/run` with the flow in the body, or
@@ -81,12 +84,17 @@ How a flow runs:
   - asynchronously through RabbitMQ: `POST /agents/:id/flow/runs`
     publishes `flow.run`, and the API consumes the `agentflow.flow-run`
     queue, then stores the streamed output with token and cost statistics.
-- Agents can call back into the API through backend tools
-  (`POST /internal/tools/:toolId`).
-- BullMQ queues on Redis carry the background jobs that run inside the API:
-  `agent-run` (3 attempts with exponential backoff, logs pushed over
-  Socket.IO), Slack alerts on 5xx responses, HubSpot webhook events and
-  Gmail jobs.
+  - as a retried background job through BullMQ: `POST /agent/run` with
+    `{ agentId, input }` queues the stored flow on `agent-run` (3 attempts
+    with exponential backoff, output pushed over Socket.IO to the room
+    named after the job id). Jobs that still fail are listed by
+    `GET /api/dlq/bull/agent-run`.
+- Agents can call back into the API through backend tools: a tool of the
+  flow is exposed to the model as a function, and its call is sent to
+  `POST /internal/tools/:toolId`.
+- The other BullMQ queues on Redis carry background jobs that run inside
+  the API: Slack alerts on 5xx responses, HubSpot webhook events and Gmail
+  jobs.
 - The Celery worker consumes RabbitMQ. It runs asynchronous Gmail sends
   (`gmail_send`), which call back into the API, and exposes Prometheus
   metrics and a health check on port 9100.
@@ -234,7 +242,15 @@ The API end-to-end suite boots the Nest application with Supertest. Most
 suites use an in-memory SQLite database. The flow streaming suite needs a
 real PostgreSQL database that it can drop, and the queues need Redis.
 
+Two suites run the real Python runner, with no mock in between, against a
+fake OpenAI endpoint (`api/python/tests/fake_openai.py`):
+`python-runner.e2e-spec.ts` (worker pool, timeouts, tool calls, handoffs)
+and `agent-run-queue.e2e-spec.ts` (the BullMQ path and its retries). They
+need the runner's virtualenv in `api/python/.venv`, or `PYTHON_BIN`.
+
 ```bash
+python3.12 -m venv api/python/.venv
+api/python/.venv/bin/pip install -r api/python/requirements-dev.txt
 docker compose up -d postgres redis rabbitmq
 docker compose exec -T postgres createdb -U postgres agentflow_test
 REDIS_HOST=localhost REDIS_PORT=6379 pnpm --filter @agentflow/api run test:e2e --runInBand
@@ -245,12 +261,13 @@ APIs. They are skipped unless their credentials (`STRIPE_SECRET_KEY`,
 `SLACK_BOT_TOKEN`, `QUONTO_CLIENT_ID` and `QUONTO_CLIENT_SECRET`,
 `PENNYLANE_API_TOKEN`) are set.
 
-The two Python suites run in separate virtualenvs, as in CI:
+The two Python suites run in separate virtualenvs, as in CI. The runner
+suite starts `flow_runner.py` as a process against the same fake OpenAI
+endpoint, so it needs no API key:
 
 ```bash
 cd api/python
-pip install -r requirements-dev.txt
-OPENAI_API_KEY=dummy pytest -q
+.venv/bin/pytest -q
 ```
 
 ```bash

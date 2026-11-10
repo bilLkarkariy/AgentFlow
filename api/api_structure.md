@@ -12,13 +12,15 @@
 ├── proto
 │   └── agent.proto
 ├── python
-│   ├── agent_runner.py
 │   ├── flow_runner.py
 │   ├── pytest.ini
 │   ├── requirements.txt
 │   ├── test_flow_runner.py
+│   ├── test_flow_runner_backend.py
 │   └── tests
-│       └── test_agent_runner.py
+│       ├── conftest.py
+│       ├── fake_openai.py
+│       └── test_flow_runner_process.py
 ├── src
 │   ├── common
 │   │   ├── controllers
@@ -30,10 +32,6 @@
 │   │   │   └── slack-alert.interceptor.ts
 │   │   ├── middleware
 │   │   │   └── request-id.middleware.ts
-│   │   ├── python
-│   │   │   ├── agent-python.client.integration.spec.ts
-│   │   │   ├── agent-python.client.spec.ts
-│   │   │   └── agent-python.client.ts
 │   │   └── schemas
 │   │       └── flow-payload.zod.ts
 │   ├── controllers
@@ -47,7 +45,6 @@
 │   │   │   ├── agent-python-client.service.spec.ts
 │   │   │   ├── agent-python-client.service.ts
 │   │   │   ├── agent-runtime.module.ts
-│   │   │   ├── agent-runtime.service.ts
 │   │   │   ├── dsl-parser.service.spec.ts
 │   │   │   ├── dsl-parser.service.ts
 │   │   │   ├── flow-engine.service.spec.ts
@@ -60,10 +57,14 @@
 │   │   │   ├── agents.service.ts
 │   │   │   ├── dsl-parser.service.ts
 │   │   │   ├── dto
+│   │   │   │   ├── agent-run.dto.ts
 │   │   │   │   ├── create-agent.dto.ts
 │   │   │   │   └── create-from-prompt.dto.ts
-│   │   │   ├── execution.controller.ts
 │   │   │   ├── flow
+│   │   │   │   ├── agent-run.controller.spec.ts
+│   │   │   │   ├── agent-run.controller.ts
+│   │   │   │   ├── agent-run.processor.spec.ts
+│   │   │   │   ├── agent-run.processor.ts
 │   │   │   │   ├── agent-flow-edge.entity.ts
 │   │   │   │   ├── agent-flow-node.entity.ts
 │   │   │   │   ├── agent-flow.entity.ts
@@ -130,10 +131,6 @@
 │   │   │   ├── pennylane.service.spec.ts
 │   │   │   └── pennylane.service.ts
 │   │   ├── queues
-│   │   │   ├── agent-run.processor.spec.ts
-│   │   │   ├── agent-run.processor.ts
-│   │   │   ├── agent.controller.spec.ts
-│   │   │   ├── agent.controller.ts
 │   │   │   ├── gmail.processor.ts
 │   │   │   ├── gmail.queue.controller.ts
 │   │   │   ├── queues.module.ts
@@ -190,6 +187,7 @@
 │   │       └── xero.service.ts
 │   └── otel-sdk.ts
 ├── test
+│   ├── agent-run-queue.e2e-spec.ts
 │   ├── app.integration.e2e.spec.ts
 │   ├── billing.e2e.spec.ts
 │   ├── dashboard.controller.spec.ts
@@ -197,9 +195,11 @@
 │   ├── dashboard.service.spec.ts
 │   ├── dsl-parser.service.spec.ts
 │   ├── flow-run.e2e.spec.ts
-│   ├── flow.e2e.spec.ts
 │   ├── flowlogs.e2e.spec.ts
+│   ├── helpers
+│   │   └── python-runner.ts
 │   ├── pennylane.e2e.spec.ts
+│   ├── python-runner.e2e-spec.ts
 │   ├── quonto.e2e.spec.ts
 │   ├── quota-reporter.service.spec.ts
 │   ├── slack.e2e.spec.ts

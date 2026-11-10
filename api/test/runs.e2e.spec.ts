@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/modules/app.module';
-import { AgentRunProcessor } from '../src/modules/queues/agent-run.processor';
+import { AgentRunProcessor } from '../src/modules/agents/flow/agent-run.processor';
 import { getQueueToken } from '@nestjs/bullmq';
 
 // Mock Bull queue for agent-run to avoid real processing
@@ -43,7 +43,7 @@ describe('RunsController (e2e)', () => {
     // enqueue via agent endpoint
     const enqueue = await request(app.getHttpServer())
       .post('/agent/run')
-      .send({ flowId: 'flow1', nodeId: 'node1', input: {} })
+      .send({ agentId: 'agent-1', input: 'hello' })
       .expect(201);
     const jobId = enqueue.body.jobId;
     expect(jobId).toBeDefined();

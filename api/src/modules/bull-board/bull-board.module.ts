@@ -19,7 +19,7 @@ export class BullBoardModule implements NestModule {
       port: parseInt(process.env.REDIS_PORT || '6379', 10),
     };
     const alertSlackQueue = new Queue('alert-slack', { connection });
-    const executeQueue = new Queue('execute-agent', { connection });
+    const agentRunQueue = new Queue('agent-run', { connection });
     const agentsQueue = new Queue('agents', { connection });
 
     // Set up Bull Board UI under /admin/queues
@@ -28,7 +28,7 @@ export class BullBoardModule implements NestModule {
     createBullBoard({
       queues: [
         new BullMQAdapter(alertSlackQueue),
-        new BullMQAdapter(executeQueue),
+        new BullMQAdapter(agentRunQueue),
         new BullMQAdapter(agentsQueue),
       ],
       serverAdapter,

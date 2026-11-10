@@ -31,7 +31,6 @@ import request from 'supertest';
 import { of } from 'rxjs';
 import { AppModule } from '../src/modules/app.module';
 import { FlowEngineService } from '../src/modules/agent-runtime/flow-engine.service';
-import { AgentRuntimeService } from '../src/modules/agent-runtime/agent-runtime.service';
 import { AgentPythonClientService } from '../src/modules/agent-runtime/agent-python-client.service';
 import { FlowService } from '../src/modules/agents/flow/flow.service';
 
@@ -48,8 +47,6 @@ describe('FlowController SSE (e2e)', () => {
     })
       .overrideProvider(FlowEngineService)
       .useValue(mockFlowEngine)
-      .overrideProvider(AgentRuntimeService)
-      .useValue({})
       .overrideProvider(AgentPythonClientService)
       .useValue({ run: jest.fn() })
       .overrideProvider(FlowService)

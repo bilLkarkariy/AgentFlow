@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { Agent } from './agent.entity';
@@ -7,7 +8,6 @@ import { AgentFlow } from './flow/agent-flow.entity';
 import { AgentFlowNode } from './flow/agent-flow-node.entity';
 import { AgentFlowEdge } from './flow/agent-flow-edge.entity';
 import { DslParserService } from './dsl-parser.service';
-import { ExecutionController } from './execution.controller';
 import { QueuesModule } from '../queues/queues.module';
 import { FlowController } from './flow/flow.controller';
 import { FlowService } from './flow/flow.service';
@@ -20,6 +20,9 @@ import { FlowRunConsumer } from './flow/flow-run.consumer';
 import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
 import { AgentRuntimeModule } from '../agent-runtime/agent-runtime.module';
 import { FlowLogsModule } from '../flow-logs/flow-logs.module';
+import { TasksModule } from '../tasks/tasks.module';
+import { AgentRunController } from './flow/agent-run.controller';
+import { AgentRunProcessor } from './flow/agent-run.processor';
 
 @Module({
   imports: [
@@ -28,9 +31,11 @@ import { FlowLogsModule } from '../flow-logs/flow-logs.module';
     RabbitMQModule,
     AgentRuntimeModule,
     FlowLogsModule,
+    TasksModule,
+    BullModule.registerQueue({ name: 'agent-run', defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 1000 } } }),
   ],
-  controllers: [AgentsController, ExecutionController, FlowController, FlowRunController],
-  providers: [AgentsService, DslParserService, FlowService, FlowGateway, FlowRunService, FlowRunConsumer],
+  controllers: [AgentsController, FlowController, FlowRunController, AgentRunController],
+  providers: [AgentsService, DslParserService, FlowService, FlowGateway, FlowRunService, FlowRunConsumer, AgentRunProcessor],
   exports: [FlowGateway],
 })
 export class AgentsModule {}

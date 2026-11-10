@@ -6,12 +6,9 @@
  * Needs a Python that has api/python/requirements.txt installed: PYTHON_BIN,
  * or the api/python/.venv virtualenv.
  */
-import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { ChildProcessWithoutNullStreams } from 'child_process';
 import { createServer, Server } from 'http';
 import { AddressInfo } from 'net';
-import path from 'path';
-import { createInterface } from 'readline';
 import { register } from 'prom-client';
 import { lastValueFrom } from 'rxjs';
 import { toArray } from 'rxjs/operators';
@@ -19,10 +16,7 @@ import type { Pool } from 'generic-pool';
 import type { AgentPythonClientService } from '../src/modules/agent-runtime/agent-python-client.service';
 import type { FlowEngineService } from '../src/modules/agent-runtime/flow-engine.service';
 import { SummarizeBlock } from '../src/modules/agents/blocks/summarize-block';
-
-const PYTHON_DIR = path.resolve(__dirname, '../python');
-const VENV_PYTHON = path.join(PYTHON_DIR, '.venv/bin/python');
-const PYTHON_BIN = process.env.PYTHON_BIN ?? (existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3');
+import { FakeOpenAI, startFakeOpenAI, useFakeOpenAI } from './helpers/python-runner';
 
 const flow = (input: string, runId = 'run') => ({
   runId,
@@ -32,8 +26,7 @@ const flow = (input: string, runId = 'run') => ({
 });
 
 describe('Python runner (integration, real process)', () => {
-  let fakeOpenAI: ChildProcessWithoutNullStreams;
-  let openAIUrl: string;
+  let fakeOpenAI: FakeOpenAI;
   let pool: Pool<ChildProcessWithoutNullStreams>;
   let Client: typeof AgentPythonClientService;
   let service: AgentPythonClientService;
@@ -44,22 +37,14 @@ describe('Python runner (integration, real process)', () => {
 
   const run = async (payload: Record<string, any>): Promise<string> =>
     (await lastValueFrom(service.run(payload).pipe(toArray()))).join('');
-  const openAIRequests = async (): Promise<any[]> =>
-    (await fetch(`${openAIUrl}/_requests`)).json();
+  const openAIRequests = () => fakeOpenAI.requests();
   const until = async (condition: () => boolean) => {
     for (let i = 0; i < 100 && !condition(); i++) await new Promise((r) => setTimeout(r, 50));
     expect(condition()).toBe(true);
   };
 
   beforeAll(async () => {
-    fakeOpenAI = spawn(PYTHON_BIN, ['-u', path.join(PYTHON_DIR, 'tests/fake_openai.py')]);
-    const firstLine = await new Promise<string>((resolve, reject) => {
-      createInterface({ input: fakeOpenAI.stdout }).once('line', resolve);
-      fakeOpenAI.once('error', reject);
-      fakeOpenAI.once('exit', (code) => reject(new Error(`fake_openai.py exited with ${code}`)));
-    });
-    openAIUrl = `http://127.0.0.1:${JSON.parse(firstLine).port}`;
-
+    fakeOpenAI = await startFakeOpenAI();
     toolBackend = createServer((req, res) => {
       let raw = '';
       req.on('data', (d) => (raw += d));
@@ -72,14 +57,8 @@ describe('Python runner (integration, real process)', () => {
     });
     await new Promise<void>((resolve) => toolBackend.listen(0, '127.0.0.1', resolve));
 
-    // The pool snapshots process.env when it is first imported: set it up before.
-    Object.assign(process.env, {
+    useFakeOpenAI(fakeOpenAI, {
       API_URL: `http://127.0.0.1:${(toolBackend.address() as AddressInfo).port}`,
-      PYTHON_BIN,
-      PYTHON_SCRIPTS_DIR: PYTHON_DIR,
-      OPENAI_API_KEY: 'dummy',
-      OPENAI_BASE_URL: `${openAIUrl}/v1`,
-      OPENAI_AGENTS_DISABLE_TRACING: '1',
     });
     /* eslint-disable @typescript-eslint/no-var-requires */
     pool = require('../src/modules/agent-runtime/python-worker.pool').pythonWorkerPool;
@@ -95,7 +74,7 @@ describe('Python runner (integration, real process)', () => {
 
   afterAll(async () => {
     await service?.onModuleDestroy();
-    fakeOpenAI?.kill();
+    fakeOpenAI?.stop();
     toolBackend?.close();
   });
 

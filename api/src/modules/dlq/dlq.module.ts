@@ -5,7 +5,7 @@ import { DLQBullService } from './dlq-bull.service';
 
 @Module({
   imports: [
-    BullModule.registerQueue({ name: 'execute-agent' }),
+    BullModule.registerQueue({ name: 'agent-run' }),
     BullModule.registerQueue({ name: 'agents' }),
   ],
   controllers: [DLQBullController],

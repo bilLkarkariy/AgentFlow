@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ChildProcessWithoutNullStreams } from 'child_process';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
 import {
   AgentMetricsService,
   AgentRunStatus,
@@ -207,13 +206,6 @@ export class AgentPythonClientService implements OnModuleDestroy {
         finish(false);
       };
     });
-  }
-
-  /**
-   * Alias to run(): emits objects shaped { token: string }
-   */
-  runAgent(payload: Record<string, any>): Observable<{ token: string }> {
-    return this.run(payload).pipe(map(data => ({ token: data })));
   }
 
   async onModuleDestroy(): Promise<void> {
