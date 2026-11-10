@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dynamic multi-agent flow runner – ND-JSON streaming"""
+"""Dynamic multi-agent flow runner – ND-JSON streaming over stdin/stdout"""
 import sys, json, asyncio, logging, os
 from agents import Agent, Runner, function_tool, RunConfig, set_tracing_export_api_key
 from openai.types.responses import ResponseTextDeltaEvent
@@ -71,21 +71,17 @@ def sdk_trace_id(trace_id: str | None) -> str | None:
         return trace_id
     return f"trace_{trace_id}"
 
-async def main():
-    # Lecture JSON en entrée
-    line = sys.stdin.readline()
-    try:
-        payload = json.loads(line)
-    except Exception as e:
-        print(json.dumps({"kind":"error","message":f"Invalid JSON: {e}"}), flush=True)
-        sys.exit(1)
+def emit(event: dict) -> None:
+    """Write one ND-JSON event; stdout carries nothing else."""
+    print(json.dumps(event), flush=True)
 
+async def run_flow(payload: dict) -> None:
+    """Run one flow and stream its text deltas as `chunk` events."""
     agents = await build_agent_map(payload)
     # Trouver l'agent racine (pas de edge d'entrée)
     root_id = next((aid for aid in agents if all(aid != dst for _, dst in payload.get("edges", []))), None)
     if not root_id:
-        print(json.dumps({"kind":"error","message":"No root agent found"}), flush=True)
-        sys.exit(1)
+        raise ValueError("No root agent found")
 
     # Configuration du run. `max_turns` is an argument of the run, not a RunConfig field.
     run_cfg = RunConfig(trace_id=sdk_trace_id(payload.get("traceId")))
@@ -99,10 +95,38 @@ async def main():
     # Streaming des événements
     async for ev in stream.stream_events():
         if ev.type == "raw_response_event" and isinstance(ev.data, ResponseTextDeltaEvent):
-            print(json.dumps({"kind":"chunk","data":ev.data.delta}), flush=True)
-    # Signaler la fin
-    print(json.dumps({"kind":"end"}), flush=True)
+            emit({"kind": "chunk", "data": ev.data.delta})
+
+async def main():
+    """Worker loop: one JSON payload per stdin line, until stdin closes.
+
+    Every run ends with exactly one terminal event, `end` or `error`, and the
+    worker then waits for the next payload: a failed run does not kill it. All
+    runs share one event loop, so the SDK's HTTP client is reused between runs.
+    """
+    while True:
+        line = await asyncio.to_thread(sys.stdin.readline)
+        if not line:
+            return
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be a JSON object")
+        except Exception as e:
+            emit({"kind": "error", "message": f"Invalid JSON: {e}"})
+            continue
+        try:
+            await run_flow(payload)
+        except Exception as e:
+            logging.exception("Flow run failed")
+            emit({"kind": "error", "message": f"{type(e).__name__}: {e}"})
+        else:
+            # Signaler la fin
+            emit({"kind": "end"})
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    # stderr is forwarded to the API log as warnings: keep per-request INFO lines out.
+    logging.basicConfig(level=logging.WARNING)
     asyncio.run(main())

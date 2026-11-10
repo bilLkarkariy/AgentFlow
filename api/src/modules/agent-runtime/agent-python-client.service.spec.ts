@@ -10,6 +10,7 @@ jest.mock('./python-worker.pool', () => ({
   pythonWorkerPool: {
     acquire: jest.fn(),
     release: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -22,15 +23,18 @@ describe('AgentPythonClientService', () => {
     // Fresh Prometheus registry so the metric guards create new instruments
     register.clear();
     // Setup fake worker process
-    fakeWorker = {
+    fakeWorker = Object.assign(new EventEmitter(), {
       stdout: new EventEmitter(),
       stderr: new EventEmitter(),
       stdin: { write: jest.fn(), end: jest.fn() },
-      once: jest.fn(),
       kill: jest.fn(),
-    };
+    });
     // Mock acquire to return fake worker
     (pythonWorkerPool.acquire as jest.Mock).mockResolvedValue(fakeWorker);
+    (pythonWorkerPool.release as jest.Mock).mockClear();
+    (pythonWorkerPool.destroy as jest.Mock).mockClear();
+    // The circuit breaker is static: start every test closed.
+    Object.assign(AgentPythonClientService, { state: 'closed', failureCount: 0, nextAttemptTime: 0 });
     metrics = new AgentMetricsService(new PricingService());
     service = new AgentPythonClientService(metrics, new PricingService());
   });
@@ -95,5 +99,119 @@ describe('AgentPythonClientService', () => {
     setImmediate(() => {
       fakeWorker.stdout.emit('data', Buffer.from(JSON.stringify({ kind: 'end' }) + '\n'));
     });
+  });
+
+  const send = (evt: Record<string, unknown>) =>
+    fakeWorker.stdout.emit('data', Buffer.from(JSON.stringify(evt) + '\n'));
+  /** Listeners this run left on the worker. */
+  const listeners = () =>
+    fakeWorker.stdout.listenerCount('data') +
+    fakeWorker.stderr.listenerCount('data') +
+    fakeWorker.listenerCount('close') +
+    fakeWorker.listenerCount('error');
+
+  it('releases the worker exactly once after `end` and leaves no listener on it', done => {
+    service.run({}).subscribe({
+      complete: () => {
+        // The worker stays alive: a later `close` must not release it again.
+        fakeWorker.emit('close', 0, null);
+        expect(pythonWorkerPool.release).toHaveBeenCalledTimes(1);
+        expect(pythonWorkerPool.release).toHaveBeenCalledWith(fakeWorker);
+        expect(pythonWorkerPool.destroy).not.toHaveBeenCalled();
+        expect(listeners()).toBe(0);
+        done();
+      },
+    });
+    setImmediate(() => send({ kind: 'end' }));
+  });
+
+  it('surfaces a runner `error` event and keeps the worker', done => {
+    service.run({}).subscribe({
+      error: async err => {
+        expect(err.message).toBe('ValueError: No root agent found');
+        expect(pythonWorkerPool.release).toHaveBeenCalledTimes(1);
+        expect(pythonWorkerPool.destroy).not.toHaveBeenCalled();
+        expect(await register.metrics()).toMatch(
+          /agentflow_python_runner_failures_total\{reason="error"\} 1/,
+        );
+        done();
+      },
+    });
+    setImmediate(() => send({ kind: 'error', message: 'ValueError: No root agent found' }));
+  });
+
+  it('destroys a worker that exits in the middle of a run', done => {
+    service.run({}).subscribe({
+      error: async err => {
+        expect(err.message).toBe('Worker exit 1');
+        expect(pythonWorkerPool.destroy).toHaveBeenCalledTimes(1);
+        expect(pythonWorkerPool.release).not.toHaveBeenCalled();
+        expect(await register.metrics()).toMatch(
+          /agentflow_python_runner_failures_total\{reason="exit"\} 1/,
+        );
+        done();
+      },
+    });
+    setImmediate(() => fakeWorker.emit('close', 1, null));
+  });
+
+  it('destroys the worker when the subscriber leaves mid-run', async () => {
+    const sub = service.run({}).subscribe();
+    await new Promise(setImmediate);
+    sub.unsubscribe();
+    expect(pythonWorkerPool.destroy).toHaveBeenCalledTimes(1);
+    expect(pythonWorkerPool.release).not.toHaveBeenCalled();
+    expect(listeners()).toBe(0);
+  });
+
+  describe('timeout', () => {
+    const timeoutMs = (AgentPythonClientService as any).TIMEOUT_MS;
+    beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] }));
+    afterEach(() => jest.useRealTimers());
+
+    it('fails the run and destroys the worker', async () => {
+      const error = jest.fn();
+      service.run({}).subscribe({ error });
+      await new Promise(setImmediate);
+      jest.advanceTimersByTime(timeoutMs);
+
+      expect(error.mock.calls[0][0].message).toBe(`Agent runner timeout after ${timeoutMs}ms`);
+      expect(pythonWorkerPool.destroy).toHaveBeenCalledTimes(1);
+      expect(pythonWorkerPool.release).not.toHaveBeenCalled();
+      expect(await register.metrics()).toMatch(
+        /agentflow_agent_runs_total\{model="other",status="timeout"\} 1/,
+      );
+    });
+
+    it('is cancelled when the run ends', async () => {
+      const error = jest.fn();
+      const complete = jest.fn();
+      service.run({}).subscribe({ error, complete });
+      await new Promise(setImmediate);
+      send({ kind: 'end' });
+      jest.advanceTimersByTime(timeoutMs * 2);
+
+      expect(jest.getTimerCount()).toBe(0);
+      expect(complete).toHaveBeenCalledTimes(1);
+      expect(error).not.toHaveBeenCalled();
+      expect(pythonWorkerPool.destroy).not.toHaveBeenCalled();
+      expect(await register.metrics()).not.toMatch(/status="timeout"/);
+    });
+  });
+
+  it('opens the circuit after repeated failures and rejects without a worker', async () => {
+    const threshold = (AgentPythonClientService as any).CB_FAILURE_THRESHOLD;
+    for (let i = 0; i < threshold; i++) {
+      const failed = new Promise(resolve => service.run({}).subscribe({ error: resolve }));
+      await new Promise(setImmediate);
+      fakeWorker.emit('close', 1, null);
+      await failed;
+    }
+    (pythonWorkerPool.acquire as jest.Mock).mockClear();
+
+    const err: Error = await new Promise(resolve => service.run({}).subscribe({ error: resolve }));
+    expect(err.message).toBe('Circuit breaker is open');
+    expect(pythonWorkerPool.acquire).not.toHaveBeenCalled();
+    expect(await register.metrics()).toMatch(/agentflow_python_runner_circuit_state 2/);
   });
 });

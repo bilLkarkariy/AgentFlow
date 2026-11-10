@@ -14,6 +14,11 @@ import { pythonWorkerPool } from './python-worker.pool';
 /**
  * Bridge to the Python agent runner (ND-JSON over stdin/stdout).
  *
+ * A runner is a long-lived process taken from `pythonWorkerPool`: one JSON
+ * payload per stdin line, then `chunk` events and exactly one terminal event,
+ * `end` or `error`. The worker is returned to the pool or destroyed exactly
+ * once per run (see `finish`).
+ *
  * This is the single emission point for the agent metrics of Annexe F: every
  * run ends here exactly once with a status, a duration, a chunk count and the
  * resulting spend. The circuit breaker state is mirrored to Prometheus on each
@@ -48,7 +53,7 @@ export class AgentPythonClientService implements OnModuleDestroy {
 
   run(payload: Record<string, any>): Observable<string> {
     return new Observable<string>((observer) => {
-      let worker: ChildProcessWithoutNullStreams;
+      let worker: ChildProcessWithoutNullStreams | undefined;
       let unsubscribed = false;
 
       const model = this.modelOf(payload);
@@ -98,21 +103,41 @@ export class AgentPythonClientService implements OnModuleDestroy {
         settle(reason === 'timeout' ? 'timeout' : 'failure', reason);
       };
 
+      let timeoutHandle: NodeJS.Timeout | undefined;
+      let detach = () => {};
+      let done = false;
+
+      /**
+       * End of this run for the worker, called once whatever the outcome.
+       * A worker that answered with a terminal event is idle again and goes
+       * back to the pool; any other worker (timeout, crash, garbage on stdout,
+       * client gone mid-run) is in an unknown state and is destroyed.
+       */
+      const finish = (reusable: boolean) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timeoutHandle);
+        detach();
+        if (!worker) return;
+        const returned = reusable
+          ? pythonWorkerPool.release(worker)
+          : pythonWorkerPool.destroy(worker);
+        returned.catch((e) => this.logger.warn(`Worker not returned to the pool: ${e.message}`));
+      };
+
       pythonWorkerPool.acquire()
         .then((w) => {
           if (unsubscribed) {
-            pythonWorkerPool.release(w);
+            pythonWorkerPool.release(w).catch(() => undefined);
             return;
           }
           worker = w;
-          worker.stderr.on('data', (d) => this.logger.warn(`[PY] ${d.toString().trim()}`));
-          worker.stdin.write(JSON.stringify(payload) + '\n');
 
           let buffer = '';
           const onData = (buf: Buffer) => {
             buffer += buf.toString();
             let nlIndex;
-            while ((nlIndex = buffer.indexOf('\n')) >= 0) {
+            while (!done && (nlIndex = buffer.indexOf('\n')) >= 0) {
               const raw = buffer.slice(0, nlIndex);
               buffer = buffer.slice(nlIndex + 1);
               if (!raw.trim()) continue;
@@ -121,8 +146,8 @@ export class AgentPythonClientService implements OnModuleDestroy {
                 evt = JSON.parse(raw);
               } catch (err) {
                 onFailure('error');
+                finish(false);
                 observer.error(err);
-                cleanup();
                 return;
               }
               if (evt.kind === 'chunk') {
@@ -132,44 +157,54 @@ export class AgentPythonClientService implements OnModuleDestroy {
               }
               if (evt.kind === 'end') {
                 onSuccess();
+                finish(true);
                 observer.complete();
-                cleanup();
+              }
+              if (evt.kind === 'error') {
+                // The runner reported the failure and is waiting for the next run.
+                onFailure('error');
+                finish(true);
+                observer.error(new Error(evt.message ?? 'Agent runner error'));
               }
             }
           };
-          const cleanup = () => {
-            worker.stdout.off('data', onData);
-            pythonWorkerPool.release(worker).catch(() => worker.kill('SIGKILL'));
+          const onError = (e: Error) => { onFailure('error'); finish(false); observer.error(e); };
+          // The runner is long-lived: it only closes mid-run when it crashed.
+          const onClose = (code: number | null, signal: NodeJS.Signals | null) => {
+            onFailure('exit');
+            finish(false);
+            observer.error(new Error(`Worker exit ${code ?? signal}`));
+          };
+          detach = () => {
+            w.stdout.off('data', onData);
+            w.off('error', onError);
+            w.off('close', onClose);
           };
 
-          worker.stdout.on('data', onData);
+          w.stdout.on('data', onData);
+          w.once('error', onError);
+          w.once('close', onClose);
 
           // Timeout handler
-          const timeoutHandle = setTimeout(() => {
+          timeoutHandle = setTimeout(() => {
             this.logger.error(`Agent runner timeout after ${AgentPythonClientService.TIMEOUT_MS}ms`);
             onFailure('timeout');
+            finish(false);
             observer.error(new Error(`Agent runner timeout after ${AgentPythonClientService.TIMEOUT_MS}ms`));
-            cleanup();
           }, AgentPythonClientService.TIMEOUT_MS);
 
-          worker.once('error', (e) => { clearTimeout(timeoutHandle); onFailure('error'); observer.error(e); cleanup(); });
-          worker.once('close', (code) => {
-            clearTimeout(timeoutHandle);
-            if (code !== 0) { onFailure('exit'); observer.error(new Error(`Worker exit ${code}`)); }
-            else { onSuccess(); }
-            cleanup();
-          });
+          w.stdin.write(JSON.stringify(payload) + '\n');
         })
         .catch((e) => {
           onFailure('error');
+          finish(false);
           observer.error(e);
         });
 
       return () => {
         unsubscribed = true;
-        if (worker) {
-          pythonWorkerPool.release(worker).catch(() => worker.kill('SIGKILL'));
-        }
+        // No-op after a terminal event; otherwise the run is still in flight.
+        finish(false);
       };
     });
   }

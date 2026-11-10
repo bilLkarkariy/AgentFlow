@@ -27,13 +27,34 @@ def test_max_turns_reaches_the_sdk(run_runner):
         ],
         "edges": [["a", "b"]],
     }
-    events, _, stderr = run_runner({**flow, "config": {"max_turns": 1}})
-    assert {"kind": "end"} not in events
-    assert "Max turns (1) exceeded" in stderr + str(events)
+    events, code, stderr = run_runner({**flow, "config": {"max_turns": 1}})
+    assert code == 0, stderr
+    assert events == [{"kind": "error", "message": "MaxTurnsExceeded: Max turns (1) exceeded"}]
 
     events, code, stderr = run_runner({**flow, "config": {"max_turns": 2}})
     assert code == 0, stderr
     assert events[-1] == {"kind": "end"}
+
+
+def test_worker_serves_ten_runs_in_a_row(run_runner, openai_server):
+    events, code, stderr = run_runner(*[{**FLOW, "runId": f"r{i}"} for i in range(10)])
+    assert code == 0, stderr
+    assert [e["kind"] for e in events] == (["chunk"] * 5 + ["end"]) * 10
+    assert len(openai_server.requests) == 10
+
+
+def test_a_failed_run_does_not_kill_the_worker(run_runner):
+    # The first two lines are what the old BullMQ path and a broken client sent.
+    events, code, stderr = run_runner({"prompt": "x", "parameters": {}}, "not a flow", FLOW)
+    assert code == 0, stderr
+    assert events[0] == {"kind": "error", "message": "ValueError: No root agent found"}
+    assert events[1] == {"kind": "error", "message": "Invalid JSON: payload must be a JSON object"}
+    assert [e["kind"] for e in events[2:]] == ["chunk"] * 5 + ["end"]
+
+
+def test_worker_exits_when_stdin_closes(run_runner):
+    events, code, _ = run_runner()
+    assert (events, code) == ([], 0)
 
 
 def test_trace_id_uses_the_sdk_format():

@@ -62,6 +62,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # python-runner.e2e-spec.ts drives the real flow_runner.py against a fake
+      # OpenAI endpoint: the runner's virtualenv has to be where the test looks
+      # for it (api/python/.venv).
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: api/python/requirements*.txt
+
+      - name: Install the Python runner
+        run: |
+          set -euo pipefail
+          python -m venv api/python/.venv
+          api/python/.venv/bin/python -m pip install --upgrade pip
+          api/python/.venv/bin/pip install -r api/python/requirements.txt
+
       # The api e2e suite runs against in-memory SQLite, but the Nest bootstrap
       # still opens Redis/RabbitMQ connections, so the compose backing services
       # stay up for the whole job. Only these three services are started: the
