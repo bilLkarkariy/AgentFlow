@@ -9,6 +9,12 @@ export interface SubscribeOptions {
    * Omit it to get a per-instance exclusive queue (broadcast).
    */
   queue?: string;
+  /**
+   * With `queue`: how many messages this consumer may hold unacknowledged,
+   * i.e. how many handlers run at once. A message is acknowledged when its
+   * handler settles. Defaults to 1.
+   */
+  prefetch?: number;
 }
 
 @Injectable()
@@ -62,7 +68,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       const channel = this.channel;
       await channel.assertQueue(opts.queue, { durable: true });
       await channel.bindQueue(opts.queue, EXCHANGE, '');
-      await channel.prefetch(1);
+      await channel.prefetch(opts.prefetch ?? 1);
       await channel.consume(
         opts.queue,
         async (msg: amqp.ConsumeMessage | null) => {

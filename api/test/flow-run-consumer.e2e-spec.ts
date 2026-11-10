@@ -98,4 +98,19 @@ describe('FlowRun (e2e)', () => {
     const outputs = nodes.map(n => n.output).sort();
     expect(outputs).toEqual(['a', 'b']);
   });
+
+  it('starts an interrupted run over when its message is redelivered', async () => {
+    // What a replica killed mid-run leaves behind: a `running` run with part of its output.
+    const flow = await flowRepo.findOne({ where: { agent: { id: 'agent1' } } });
+    const run = await runRepo.save(runRepo.create({ flow, status: 'running', stats: null }));
+    await runNodeRepo.save(runNodeRepo.create({ run, extNodeId: 'n1', output: 'partial', status: 'completed' }));
+
+    // The broker redelivers the unacknowledged message.
+    app.get(RabbitMQService).publish('flow.run', { runId: run.id, input: 'hello', agentId: 'agent1' });
+    await new Promise(r => setTimeout(r, 50));
+
+    expect((await runRepo.findOne({ where: { id: run.id } })).status).toBe('completed');
+    const nodes = await runNodeRepo.find({ where: { run: { id: run.id } } });
+    expect(nodes.map(n => n.output).sort()).toEqual(['a', 'b']);
+  });
 });

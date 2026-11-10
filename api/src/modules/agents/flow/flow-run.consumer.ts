@@ -16,6 +16,9 @@ const USD_TO_EUR = 0.92;
 /** `nodeId` of the log entries that describe the whole run. */
 export const RUN_LOG_NODE_ID = 'run';
 
+/** Runs one replica executes at once; the rest wait in the queue. */
+const CONCURRENCY = parseInt(process.env.FLOW_RUN_CONCURRENCY ?? '5', 10);
+
 @Injectable()
 export class FlowRunConsumer implements OnModuleInit {
   constructor(
@@ -34,13 +37,25 @@ export class FlowRunConsumer implements OnModuleInit {
     // Durable shared queue: a run is executed by a single api replica.
     this.rabbitService.subscribe('flow.run', this.handleRun.bind(this), {
       queue: 'agentflow.flow-run',
+      prefetch: CONCURRENCY,
     });
   }
 
-  private async handleRun(payload: { runId: string; input: any; agentId: string }) {
+  /**
+   * Resolves once the run has reached a final status. RabbitMQService
+   * acknowledges the message only then: if this replica dies in the middle
+   * of a run, the broker hands the message to another consumer.
+   */
+  private async handleRun(payload: { runId: string; input: any; agentId: string }): Promise<void> {
     const { runId, input, agentId } = payload;
     const run = await this.runRepo.findOne({ where: { id: runId }, relations: ['flow'] });
     if (!run) throw new NotFoundException(`Run ${runId} not found`);
+    // Redelivered message: a finished run is not run twice, an interrupted
+    // one starts over without the output of the attempt that died.
+    if (run.status === FlowRunStatus.COMPLETED || run.status === FlowRunStatus.FAILED) return;
+    if (run.status === FlowRunStatus.RUNNING) {
+      await this.runNodeRepo.delete({ run: { id: runId } });
+    }
     run.status = FlowRunStatus.RUNNING;
     await this.runRepo.save(run);
     this.log(runId, RUN_LOG_NODE_ID, 'info', 'Exécution démarrée');
@@ -57,44 +72,54 @@ export class FlowRunConsumer implements OnModuleInit {
     let tokenCount = 0;
     let output = '';
 
-    // defer: a payload the runner schema rejects fails the run instead of
-    // throwing here and leaving it `running`.
-    defer(() => this.flowEngineService.runFlow(flowDto, input)).subscribe({
-      next: async (token: string) => {
-        tokenCount++;
-        output += token;
-        this.flowLogs.emitToken(runId, token);
-        const nodeEntry = this.runNodeRepo.create({
-          run,
-          extNodeId: rootId,
-          output: token,
-          status: FlowRunStatus.COMPLETED,
-          durationMs: null,
-        });
-        await this.runNodeRepo.save(nodeEntry);
-      },
-      error: async (err: unknown) => {
-        run.status = FlowRunStatus.FAILED;
-        await this.runRepo.save(run);
-        const reason = err instanceof Error ? err.message : String(err);
-        this.log(runId, RUN_LOG_NODE_ID, 'error', `Échec de l'exécution : ${reason}`);
-        this.flowLogs.endRun(runId);
-      },
-      complete: async () => {
-        run.status = FlowRunStatus.COMPLETED;
-        const usd = this.pricing.costFor(model, tokenCount);
-        run.stats = {
-          tokens: tokenCount,
-          model,
-          usd,
-          // kept for the dashboard UI, which still reads `euros`
-          euros: usd * USD_TO_EUR,
-        };
-        await this.runRepo.save(run);
-        if (output) this.log(runId, rootId, 'success', output);
-        this.log(runId, RUN_LOG_NODE_ID, 'success', `Exécution terminée · ${tokenCount} jetons`);
-        this.flowLogs.endRun(runId);
-      },
+    const tokenSaves: Promise<unknown>[] = [];
+
+    const onError = async (err: unknown) => {
+      await Promise.allSettled(tokenSaves);
+      run.status = FlowRunStatus.FAILED;
+      await this.runRepo.save(run);
+      const reason = err instanceof Error ? err.message : String(err);
+      this.log(runId, RUN_LOG_NODE_ID, 'error', `Échec de l'exécution : ${reason}`);
+      this.flowLogs.endRun(runId);
+    };
+    const onComplete = async () => {
+      await Promise.allSettled(tokenSaves);
+      run.status = FlowRunStatus.COMPLETED;
+      const usd = this.pricing.costFor(model, tokenCount);
+      run.stats = {
+        tokens: tokenCount,
+        model,
+        usd,
+        // kept for the dashboard UI, which still reads `euros`
+        euros: usd * USD_TO_EUR,
+      };
+      await this.runRepo.save(run);
+      if (output) this.log(runId, rootId, 'success', output);
+      this.log(runId, RUN_LOG_NODE_ID, 'success', `Exécution terminée · ${tokenCount} jetons`);
+      this.flowLogs.endRun(runId);
+    };
+
+    await new Promise<void>((resolve, reject) => {
+      // defer: a payload the runner schema rejects fails the run instead of
+      // throwing here and leaving it `running`.
+      defer(() => this.flowEngineService.runFlow(flowDto, input)).subscribe({
+        next: (token: string) => {
+          tokenCount++;
+          output += token;
+          this.flowLogs.emitToken(runId, token);
+          const nodeEntry = this.runNodeRepo.create({
+            run,
+            extNodeId: rootId,
+            output: token,
+            status: FlowRunStatus.COMPLETED,
+            durationMs: null,
+          });
+          tokenSaves.push(this.runNodeRepo.save(nodeEntry));
+        },
+        // A failed run is a handled message: its status is stored, nothing to redeliver.
+        error: (err: unknown) => onError(err).then(resolve, reject),
+        complete: () => onComplete().then(resolve, reject),
+      });
     });
   }
 

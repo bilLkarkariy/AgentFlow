@@ -84,6 +84,9 @@ How a flow runs:
   - asynchronously through RabbitMQ: `POST /agents/:id/flow/runs`
     publishes `flow.run`, and the API consumes the `agentflow.flow-run`
     queue, then stores the streamed output with token and cost statistics.
+    The message is acknowledged when the run ends: if the replica dies in
+    the middle of a run, RabbitMQ redelivers it and the run starts over.
+    A replica executes up to `FLOW_RUN_CONCURRENCY` runs at once (5).
   - as a retried background job through BullMQ: `POST /agent/run` with
     `{ agentId, input }` queues the stored flow on `agent-run` (3 attempts
     with exponential backoff, output pushed over Socket.IO to the room
@@ -429,6 +432,9 @@ Parts of the product surface are still prototypes:
   fetch processor and the generic webhook trigger stop at a `TODO` or have
   no consumer.
 - The studio ships Storybook stories, but no Storybook configuration.
+- Asynchronous runs survive the death of an API replica, not a broker
+  restart: the `gmail.events` exchange is not durable, its messages are
+  not persistent, and a rejected message has no dead-letter queue.
 
 ## Documentation
 
